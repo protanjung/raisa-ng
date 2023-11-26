@@ -1,0 +1,3 @@
+[submodule "src/pandu_ros2_kit"]
+	path = src/pandu_ros2_kit
+	url = https://github.com/protanjung/pandu_ros2_kit.git
