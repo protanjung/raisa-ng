@@ -3,17 +3,18 @@ import os
 from ament_index_python import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import RegisterEventHandler, EmitEvent, ExecuteProcess
-from launch.events import Shutdown
+from launch.actions import EmitEvent, ExecuteProcess, IncludeLaunchDescription, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
+from launch.events import Shutdown
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.actions import Node
 
 
 # Collection of parameters for raisa tested by Pandu Surya Tantra and Moh Ismarintan Zazuli.
 # Should yo want to ask about these parameters, please contact them.
-param_raisa = {'raisa.tf.camera': [0.00, 0.00, 0.00, 0.00, 0.00, 0.00],
-               'raisa.tf.lidar': [0.20, 0.00, 0.13, 180.00, 0.00, 90.00],
+param_raisa = {'raisa.tf.camera': [0.24, 0.00, 0.30, 0.00, 0.00, 0.00],
+               'raisa.tf.lidar': [0.20, 0.00, 0.35, 180.00, 0.00, 90.00],
                'raisa.conversion.encoder_odometry_pulse_to_meter': 0.000076586,
                'raisa.odometry.offset_x': 0.317696,
                'raisa.odometry.offset_y': 0.0}
@@ -53,6 +54,60 @@ def generate_launch_description():
                      'initial_reset': True}],
         remappings=[('/imu', '/imu_raw')])
 
+    # ==========================================================================
+
+    rtabmap_slam_rtabmap = Node(
+        package='rtabmap_slam',
+        executable='rtabmap',
+        name='rtabmap',
+        namespace='rtabmap',
+        respawn=True,
+        parameters=[{
+            'subscribe_depth': False,
+            'subscribe_scan': True,
+            'subscribe_scan_cloud': False,
+            'subscribe_stereo': False,
+            'subscribe_rgbd': True,
+
+            'Reg/Strategy': '1',
+            'Reg/Force3DoF': 'true',
+            'RGBD/NeighborLinkRefining': 'True',
+            'Grid/RangeMin': '0.5',
+            'Optimizer/GravitySigma': '0',
+
+            'approx_sync': True,
+            # 'qos': 1,
+            # 'qos_camera_info': 1,
+            # 'qos_scan': 1,
+            # 'qos_odom': 1,
+            # 'qos_user_data': 1
+        }],
+        remappings=[
+            ('odom', '/odom'),
+            ('scan', '/scan'),
+            ('map', '/map'),
+        ],
+        arguments=['--delete_db_on_start'])
+
+    rtabmap_sync_rgbd_sync = Node(
+        package='rtabmap_sync',
+        executable='rgbd_sync',
+        name='rgbd_sync',
+        namespace='rtabmap',
+        respawn=True,
+        parameters=[{
+            'approx_sync': False,
+            # 'qos': 1,
+            # 'qos_camera_info': 1
+        }],
+        remappings=[
+            ('rgb/image', '/color/image_raw'),
+            ('rgb/camera_info', '/color/camera_info'),
+            ('depth/image', '/aligned_depth_to_color/image_raw')
+        ])
+
+    # ==========================================================================
+
     rviz2 = Node(
         package='rviz2',
         executable='rviz2',
@@ -70,10 +125,12 @@ def generate_launch_description():
                      'frame_id': 'lidar_link',
                      'azimuth_start': 185.0,
                      'azimuth_stop': 355.0,
+                     'azimuth_step': 1.0,
                      'distance_min': 0.2,
                      'distance_max': 20.0}],
         remappings=[('/points_xyz', '/lidar/points_xyz'),
-                    ('/points_xyzi', '/lidar/points_xyzi')])
+                    ('/points_xyzi', '/lidar/points_xyzi'),
+                    ('/laser_scan', '/scan')])
 
     io_stm32 = Node(
         package='raisa_io',
@@ -100,6 +157,8 @@ def generate_launch_description():
     return LaunchDescription([
         imu_filter_madgwick_node,
         realsense2_camera_node,
+        rtabmap_slam_rtabmap,
+        rtabmap_sync_rgbd_sync,
         rviz2,
         io_lslidar_n301,
         io_stm32,

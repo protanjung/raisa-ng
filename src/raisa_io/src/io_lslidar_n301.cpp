@@ -3,6 +3,7 @@
 #include "pcl/point_types.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
 
 using namespace std::chrono_literals;
@@ -15,6 +16,7 @@ class IOLSLIDARN301 : public rclcpp::Node {
   std::string frame_id;
   float azimuth_start;
   float azimuth_stop;
+  float azimuth_step;
   float distance_min;
   float distance_max;
   //-----Timer
@@ -22,6 +24,7 @@ class IOLSLIDARN301 : public rclcpp::Node {
   //-----Publisher
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_points_xyz;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_points_xyzi;
+  rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr pub_laser_scan;
 
   // Socket connection
   // =================
@@ -56,6 +59,7 @@ class IOLSLIDARN301 : public rclcpp::Node {
 
   pcl::PointCloud<pcl::PointXYZ> points_xyz;
   pcl::PointCloud<pcl::PointXYZI> points_xyzi;
+  sensor_msgs::msg::LaserScan laser_scan;
 
   IOLSLIDARN301() : Node("io_lslidar_n301") {
     //-----Parameter
@@ -64,6 +68,7 @@ class IOLSLIDARN301 : public rclcpp::Node {
     this->declare_parameter("frame_id", rclcpp::PARAMETER_STRING);
     this->declare_parameter("azimuth_start", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("azimuth_stop", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("azimuth_step", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("distance_min", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("distance_max", rclcpp::PARAMETER_DOUBLE);
     this->get_parameter("msop_port", msop_port);
@@ -71,6 +76,7 @@ class IOLSLIDARN301 : public rclcpp::Node {
     this->get_parameter("frame_id", frame_id);
     this->get_parameter("azimuth_start", azimuth_start);
     this->get_parameter("azimuth_stop", azimuth_stop);
+    this->get_parameter("azimuth_step", azimuth_step);
     this->get_parameter("distance_min", distance_min);
     this->get_parameter("distance_max", distance_max);
     //-----Timer
@@ -78,6 +84,7 @@ class IOLSLIDARN301 : public rclcpp::Node {
     //-----Publisher
     pub_points_xyz = this->create_publisher<sensor_msgs::msg::PointCloud2>("points_xyz", 1);
     pub_points_xyzi = this->create_publisher<sensor_msgs::msg::PointCloud2>("points_xyzi", 1);
+    pub_laser_scan = this->create_publisher<sensor_msgs::msg::LaserScan>("laser_scan", 1);
 
     if (lidar_init() == false) {
       RCLCPP_ERROR(this->get_logger(), "Lidar initialization failed");
@@ -102,6 +109,7 @@ class IOLSLIDARN301 : public rclcpp::Node {
     RCLCPP_INFO(this->get_logger(), "Frame ID: %s", frame_id.c_str());
     RCLCPP_INFO(this->get_logger(), "Azimuth Start: %f", azimuth_start);
     RCLCPP_INFO(this->get_logger(), "Azimuth Stop: %f", azimuth_stop);
+    RCLCPP_INFO(this->get_logger(), "Azimuth Step: %f", azimuth_step);
     RCLCPP_INFO(this->get_logger(), "Distance Min: %f", distance_min);
     RCLCPP_INFO(this->get_logger(), "Distance Max: %f", distance_max);
 
@@ -119,6 +127,16 @@ class IOLSLIDARN301 : public rclcpp::Node {
       azimuth_cos_table[i] = cos(i * M_PI / 18000);
       azimuth_sin_table[i] = -sin(i * M_PI / 18000);
     }
+
+    uint16_t n = azimuth_stop > azimuth_start ? (azimuth_stop - azimuth_start) / azimuth_step
+                                              : (azimuth_stop + 360 - azimuth_start) / azimuth_step;
+    laser_scan.header.frame_id = frame_id;
+    laser_scan.angle_min = (azimuth_start + 180) * M_PI / 180;
+    laser_scan.angle_max = (azimuth_stop + 180) * M_PI / 180;
+    laser_scan.angle_increment = azimuth_step * M_PI / 180;
+    laser_scan.range_min = distance_min;
+    laser_scan.range_max = distance_max;
+    laser_scan.ranges.assign(n, 0);
 
     return true;
   }
@@ -170,6 +188,17 @@ class IOLSLIDARN301 : public rclcpp::Node {
           float distance_correct = (float)distance_raw * 0.002;
           float intensity_correct = (float)intensity_raw / 255;
 
+          /* This code is calculating index for laserscan message. */
+          int16_t ls_index = -(uint16_t)(azimuth_correct / azimuth_step) + (uint16_t)(azimuth_stop / azimuth_step);
+          if (ls_index < 0) { ls_index += 360 / azimuth_step; }
+
+          /*This code is filling range and intesity information for laserscan message. */
+          if (ls_index >= 0 && ls_index < (int16_t)laser_scan.ranges.size()) {
+            if (laser_scan.ranges[ls_index] == 0 || laser_scan.ranges[ls_index] > distance_correct) {
+              laser_scan.ranges[ls_index] = distance_correct;
+            }
+          }
+
           /* This code is checking if the azimuth angle and distance values of a lidar point fall within the
           specified range. If the azimuth angle is outside the range (either less than the start angle or
           greater than the stop angle), or if the distance is outside the range (either less than the minimum
@@ -210,6 +239,14 @@ class IOLSLIDARN301 : public rclcpp::Node {
 
         points_xyz.clear();
         points_xyzi.clear();
+
+        laser_scan.header.stamp = this->now();
+
+        sensor_msgs::msg::LaserScan msg_laser_scan;
+        msg_laser_scan = laser_scan;
+        pub_laser_scan->publish(msg_laser_scan);
+
+        laser_scan.ranges.assign(laser_scan.ranges.size(), 0);
       }
     }
 

@@ -1,9 +1,8 @@
 #include "tf2_ros/transform_broadcaster.h"
 
+#include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/rclcpp.hpp"
-#include "tf2/LinearMath/Quaternion.h"
-#include "tf2/LinearMath/Transform.h"
-#include "tf2/LinearMath/Vector3.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2_ros/static_transform_broadcaster.h"
 
 using namespace std::chrono_literals;
@@ -15,6 +14,8 @@ class TransformBroadcaster : public rclcpp::Node {
   std::vector<double> raisa_tf_lidar;
   //-----Timer
   rclcpp::TimerBase::SharedPtr tim_100hz;
+  //-----Subscriber
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odom;
   //-----Transform broadcaster
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
   std::unique_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster;
@@ -28,6 +29,9 @@ class TransformBroadcaster : public rclcpp::Node {
 
     //-----Timer
     tim_100hz = this->create_wall_timer(10ms, std::bind(&TransformBroadcaster::cllbck_tim_100hz, this));
+    //-----Subscriber
+    sub_odom = this->create_subscription<nav_msgs::msg::Odometry>(
+        "odom", 10, std::bind(&TransformBroadcaster::cllbck_sub_odom, this, std::placeholders::_1));
     //-----Transform broadcaster
     tf_broadcaster = std::make_unique<tf2_ros::TransformBroadcaster>(this);
     static_tf_broadcaster = std::make_unique<tf2_ros::StaticTransformBroadcaster>(this);
@@ -45,6 +49,25 @@ class TransformBroadcaster : public rclcpp::Node {
       RCLCPP_ERROR(this->get_logger(), "Transform broadcaster routine failed");
       rclcpp::shutdown();
     }
+  }
+
+  //====================================
+
+  void cllbck_sub_odom(const nav_msgs::msg::Odometry::SharedPtr msg) {
+    tf2::Quaternion q;
+    double roll, pitch, yaw;
+    tf2::fromMsg(msg->pose.pose.orientation, q);
+    tf2::Matrix3x3(q).getRPY(roll, pitch, yaw);
+
+    send_transform(
+        {msg->pose.pose.position.x,
+         msg->pose.pose.position.y,
+         msg->pose.pose.position.z,
+         roll * 180 / M_PI,
+         pitch * 180 / M_PI,
+         yaw * 180 / M_PI},
+        "odom",
+        "base_link");
   }
 
   //====================================
