@@ -185,7 +185,7 @@ class IOLSLIDARN301 : public rclcpp::Node {
           converting them to correct values. */
           uint16_t distance_raw = *(uint16_t *)packet->block[i_block].data[i_laser * 16 + i_data].distance;
           uint8_t intensity_raw = packet->block[i_block].data[i_laser * 16 + i_data].intensity;
-          float distance_correct = (float)distance_raw * 0.002;
+          float distance_correct = (float)distance_raw * 0.004;
           float intensity_correct = (float)intensity_raw / 255;
 
           /* This code is calculating index for laserscan message. */

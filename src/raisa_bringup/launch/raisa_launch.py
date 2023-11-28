@@ -33,6 +33,33 @@ raisa_ng_data_path = os.path.join(os.environ['HOME'], 'raisa-ng-data')
 
 
 def generate_launch_description():
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_node',
+        respawn=True,
+        parameters=[{'map_frame': 'map',
+                     'odom_frame': 'odom',
+                     'base_link_frame': 'base_link',
+                     'world_frame': 'map',
+                     'two_d_mode': True,
+                     'odom0': '/odom',
+                     'odom0_config': [True, True, False,
+                                      False, False, True,
+                                      False, False, False,
+                                      False, False, False,
+                                      False, False, False],
+                     'odom0_differential': True,
+                     'odom0_relative': True,
+                     'pose0': '/slam/localization_pose',
+                     'pose0_config': [True, True, False,
+                                      False, False, True,
+                                      False, False, False,
+                                      False, False, False,
+                                      False, False, False],
+                     'pose0_differential': False,
+                     'pose0_relative': False}])
+
     imu_filter_madgwick_node = Node(
         package='imu_filter_madgwick',
         executable='imu_filter_madgwick_node',
@@ -54,59 +81,50 @@ def generate_launch_description():
                      'initial_reset': True}],
         remappings=[('/imu', '/imu_raw')])
 
-    # ==========================================================================
-
     rtabmap_slam_rtabmap = Node(
         package='rtabmap_slam',
         executable='rtabmap',
         name='rtabmap',
-        namespace='rtabmap',
+        namespace='slam',
         respawn=True,
-        parameters=[{
-            'subscribe_depth': False,
-            'subscribe_scan': True,
-            'subscribe_scan_cloud': False,
-            'subscribe_stereo': False,
-            'subscribe_rgbd': True,
-
-            'Reg/Strategy': '1',
-            'Reg/Force3DoF': 'true',
-            'RGBD/NeighborLinkRefining': 'True',
-            'Grid/RangeMin': '0.5',
-            'Optimizer/GravitySigma': '0',
-
-            'approx_sync': True,
-            # 'qos': 1,
-            # 'qos_camera_info': 1,
-            # 'qos_scan': 1,
-            # 'qos_odom': 1,
-            # 'qos_user_data': 1
-        }],
-        remappings=[
-            ('odom', '/odom'),
-            ('scan', '/scan'),
-            ('map', '/map'),
-        ],
+        parameters=[{'approx_sync': True,
+                     'subscribe_depth': False,
+                     'subscribe_scan': True,
+                     'subscribe_scan_cloud': False,
+                     'subscribe_stereo': False,
+                     'subscribe_rgbd': True,
+                     'subscribe_rgb': False,
+                     'odom_frame_id': 'odom',
+                     'odom_tf_linear_variance': 0.001,
+                     'odom_tf_angular_variance': 0.001,
+                     'publish_tf': False,
+                     'Grid/CellSize': '0.02',
+                     'Grid/FootprintHeight': '1.5',
+                     'Grid/FootprintLength': '0.5',
+                     'Grid/FootprintWidth': '0.5',
+                     'Grid/FromDepth': 'False',
+                     'Mem/IncrementalMemory': 'True',
+                     'RGBD/NeighborLinkRefining': 'True',
+                     'RGBD/ProximityBySpace': 'True',
+                     'RGBD/AngularUpdate': '0.01',
+                     'RGBD/LinearUpdate': '0.01',
+                     'RGBD/OptimizeFromGraphEnd': 'False',
+                     'Reg/Force3DoF': 'true',
+                     'Reg/Strategy': '1'}],
+        remappings=[('odom', '/odom'),
+                    ('scan', '/scan')],
         arguments=['--delete_db_on_start'])
 
     rtabmap_sync_rgbd_sync = Node(
         package='rtabmap_sync',
         executable='rgbd_sync',
         name='rgbd_sync',
-        namespace='rtabmap',
+        namespace='slam',
         respawn=True,
-        parameters=[{
-            'approx_sync': False,
-            # 'qos': 1,
-            # 'qos_camera_info': 1
-        }],
-        remappings=[
-            ('rgb/image', '/color/image_raw'),
-            ('rgb/camera_info', '/color/camera_info'),
-            ('depth/image', '/aligned_depth_to_color/image_raw')
-        ])
-
-    # ==========================================================================
+        parameters=[{'approx_sync': False}],
+        remappings=[('rgb/image', '/color/image_raw'),
+                    ('rgb/camera_info', '/color/camera_info'),
+                    ('depth/image', '/aligned_depth_to_color/image_raw')])
 
     rviz2 = Node(
         package='rviz2',
@@ -154,7 +172,14 @@ def generate_launch_description():
         respawn=True,
         parameters=[param_raisa])
 
+    routine = Node(
+        package='raisa_routine',
+        executable='routine',
+        name='routine',
+        respawn=True)
+
     return LaunchDescription([
+        ekf_node,
         imu_filter_madgwick_node,
         realsense2_camera_node,
         rtabmap_slam_rtabmap,
@@ -164,4 +189,5 @@ def generate_launch_description():
         io_stm32,
         pose_estimator,
         transform_broadcaster,
+        # routine,
     ])

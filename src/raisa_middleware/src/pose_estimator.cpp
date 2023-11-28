@@ -101,6 +101,14 @@ class PoseEstimator : public rclcpp::Node {
 
     static geometry_msgs::msg::Pose2D temp_pose2d;
 
+    static bool first_time = true;
+    if (first_time == true) {
+      temp_pose2d.x = -raisa_odometry_offset_x;
+      temp_pose2d.y = -raisa_odometry_offset_y;
+      temp_pose2d.theta = 0;
+      first_time = false;
+    }
+
     temp_pose2d.x +=
         (d_encoder0 * cosf(temp_pose2d.theta + 0.7853981634) + d_encoder1 * cosf(temp_pose2d.theta - 0.7853981634)) *
         raisa_conversion_encoder_odometry_pulse_to_meter;
@@ -149,19 +157,19 @@ class PoseEstimator : public rclcpp::Node {
     msg_odom.pose.pose.position.y = odometry_pose2d.y;
     msg_odom.pose.pose.position.z = 0;
     msg_odom.pose.pose.orientation = rpy_to_quaternion(0, 0, odometry_pose2d.theta);
-    msg_odom.pose.covariance[0] = 0.01;
-    msg_odom.pose.covariance[7] = 0.01;
-    msg_odom.pose.covariance[14] = 99999;
-    msg_odom.pose.covariance[21] = 99999;
-    msg_odom.pose.covariance[28] = 99999;
-    msg_odom.pose.covariance[35] = 0.01;
+    msg_odom.pose.covariance[0] = 1e-12;
+    msg_odom.pose.covariance[7] = 1e-12;
+    msg_odom.pose.covariance[14] = 1e6;
+    msg_odom.pose.covariance[21] = 1e6;
+    msg_odom.pose.covariance[28] = 1e6;
+    msg_odom.pose.covariance[35] = 1e-12;
     msg_odom.twist.twist = odometry_twist;
-    msg_odom.twist.covariance[0] = 0.01;
-    msg_odom.twist.covariance[7] = 0.01;
-    msg_odom.twist.covariance[14] = 99999;
-    msg_odom.twist.covariance[21] = 99999;
-    msg_odom.twist.covariance[28] = 99999;
-    msg_odom.twist.covariance[35] = 0.01;
+    msg_odom.twist.covariance[0] = 1e-12;
+    msg_odom.twist.covariance[7] = 1e-12;
+    msg_odom.twist.covariance[14] = 1e6;
+    msg_odom.twist.covariance[21] = 1e6;
+    msg_odom.twist.covariance[28] = 1e6;
+    msg_odom.twist.covariance[35] = 1e-12;
     pub_odom->publish(msg_odom);
   }
 
