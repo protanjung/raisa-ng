@@ -26,7 +26,8 @@ param_raisa = {'raisa.tf.body': [0.00, 0.00, 0.75, 0.00, 0.00, 0.00],
                'raisa.roda.offset_y': 0.0,
                'raisa.body.width': 0.5,
                'raisa.body.length': 0.5,
-               'raisa.body.height': 1.5}
+               'raisa.body.height': 1.5,
+               'raisa.path.misc': os.path.join(os.environ['HOME'], 'raisa-ng-data', 'misc')}
 
 # if 'GTK_PATH' environment variable is set, rviz2 will crash
 # to avoid this, delete the variable before launching rviz2

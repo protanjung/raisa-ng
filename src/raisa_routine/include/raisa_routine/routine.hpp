@@ -1,7 +1,9 @@
 #ifndef ROUTINE_HPP_
 #define ROUTINE_HPP_
 
+#include "boost/filesystem.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "pandu_ros2_kit/help_marker.hpp"
 #include "raisa_interfaces/msg/basestation_from_pc.hpp"
 #include "raisa_interfaces/msg/basestation_to_pc.hpp"
@@ -42,12 +44,14 @@ class Routine : public rclcpp::Node {
   double raisa_body_width;
   double raisa_body_length;
   double raisa_body_height;
+  std::string raisa_path_misc;
   //-----Timer
   rclcpp::TimerBase::SharedPtr tim_10hz;
   rclcpp::TimerBase::SharedPtr tim_50hz;
   //-----Subscriber
   rclcpp::Subscription<raisa_interfaces::msg::Stm32ToPc>::SharedPtr sub_stm32_to_pc;
   rclcpp::Subscription<raisa_interfaces::msg::BasestationToPc>::SharedPtr sub_basestation_to_pc;
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odometry_filtered;
   //-----Publisher
   rclcpp::Publisher<raisa_interfaces::msg::Stm32FromPc>::SharedPtr pub_stm32_from_pc;
   rclcpp::Publisher<raisa_interfaces::msg::BasestationFromPc>::SharedPtr pub_basestation_from_pc;
@@ -86,6 +90,29 @@ class Routine : public rclcpp::Node {
   bool button_now[18] = {0};
   bool button_old[18] = {0};
 
+  // Route and POI
+  // =============
+  typedef struct {
+    float x;
+    float y;
+  } route;
+  typedef struct {
+    float x;
+    float y;
+    float theta;
+    float duration;
+    std::vector<geometry_msgs::msg::Point> list_route_entry;
+    std::vector<geometry_msgs::msg::Point> list_route_exit;
+    float gate_x;
+    float gate_y;
+  } poi;
+  std::vector<route> list_route;
+  std::vector<poi> list_poi;
+
+  // Path
+  // ====
+  std::vector<geometry_msgs::msg::Point> path_active;
+
   Routine();
 
   void cllbck_tim_10hz();
@@ -93,6 +120,7 @@ class Routine : public rclcpp::Node {
 
   void cllbck_sub_stm32_to_pc(raisa_interfaces::msg::Stm32ToPc::SharedPtr msg);
   void cllbck_sub_basestaion_to_pc(raisa_interfaces::msg::BasestationToPc::SharedPtr msg);
+  void cllbck_sub_odometry_filtered(nav_msgs::msg::Odometry::SharedPtr msg);
 
   void process_all();
   void process_marker();
@@ -100,6 +128,9 @@ class Routine : public rclcpp::Node {
   void process_mission();
 
   void jalan_manual(float _dx, float _dy, float _dtheta, float _a_linear = 2.0, float _a_angular = M_PI);
+
+  std::vector<geometry_msgs::msg::Point> route_to_path(const std::vector<route>& _list_route, float _res = 0.1);
+  std::vector<geometry_msgs::msg::Point> generate_path(float _x0, float _y0, float _x1, float _y1, float _res = 0.1);
 
   void publish_initialpose(float _x, float _y, float _theta);
 

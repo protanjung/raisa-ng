@@ -15,6 +15,7 @@ set(var_dependencies
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 foreach(dependency ${var_dependencies})
   find_package(${dependency} REQUIRED)
 endforeach()
@@ -24,6 +25,7 @@ include_directories(include)
 add_executable(routine src/routine_main.cpp src/routine_motion.cpp
                        src/routine_process.cpp)
 ament_target_dependencies(routine ${var_dependencies})
+target_link_libraries(routine Boost::filesystem)
 
 install(TARGETS routine DESTINATION lib/${PROJECT_NAME})
 
