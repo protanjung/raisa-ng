@@ -5,11 +5,11 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# find dependencies
-find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-
-set(var_dependencies rclcpp)
+set(var_dependencies
+    nav_msgs
+    raisa_interfaces
+    rclcpp
+    tf2_geometry_msgs)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -19,7 +19,7 @@ endforeach()
 
 include_directories(include)
 
-add_executable(routine src/routine_main.cpp)
+add_executable(routine src/routine_main.cpp src/routine_motion.cpp)
 ament_target_dependencies(routine ${var_dependencies})
 
 install(TARGETS routine DESTINATION lib/${PROJECT_NAME})

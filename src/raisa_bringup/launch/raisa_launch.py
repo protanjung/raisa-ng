@@ -15,9 +15,14 @@ from launch_ros.actions import Node
 # Should yo want to ask about these parameters, please contact them.
 param_raisa = {'raisa.tf.camera': [0.24, 0.00, 0.30, 0.00, 0.00, 0.00],
                'raisa.tf.lidar': [0.20, 0.00, 0.35, 180.00, 0.00, 90.00],
-               'raisa.conversion.encoder_odometry_pulse_to_meter': 0.000076586,
+               'raisa.conversion.odometry_pulse_to_meter': 0.000076586,
+               'raisa.conversion.roda_pulse_to_meter': 0.0000820008,
+               'raisa.conversion.stm32_from_pc_linear_multiplier': 170.0,
+               'raisa.conversion.stm32_from_pc_angular_multiplier': 28.0,
                'raisa.odometry.offset_x': 0.317696,
-               'raisa.odometry.offset_y': 0.0}
+               'raisa.odometry.offset_y': 0.0,
+               'raisa.roda.offset_x': -0.05,
+               'raisa.roda.offset_y': 0.0}
 
 # if 'GTK_PATH' environment variable is set, rviz2 will crash
 # to avoid this, delete the variable before launching rviz2
@@ -43,6 +48,8 @@ def generate_launch_description():
                      'base_link_frame': 'base_link',
                      'world_frame': 'map',
                      'two_d_mode': True,
+                     'smooth_lagged_data': True,
+                     'history_length': 10.0,
                      'odom0': '/odom',
                      'odom0_config': [True, True, False,
                                       False, False, True,
@@ -176,7 +183,8 @@ def generate_launch_description():
         package='raisa_routine',
         executable='routine',
         name='routine',
-        respawn=True)
+        respawn=True,
+        parameters=[param_raisa])
 
     return LaunchDescription([
         ekf_node,
@@ -189,5 +197,5 @@ def generate_launch_description():
         io_stm32,
         pose_estimator,
         transform_broadcaster,
-        # routine,
+        routine,
     ])

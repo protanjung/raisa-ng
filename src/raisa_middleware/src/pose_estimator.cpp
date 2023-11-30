@@ -13,9 +13,12 @@ using namespace std::chrono_literals;
 class PoseEstimator : public rclcpp::Node {
  public:
   //-----Parameter
-  double raisa_conversion_encoder_odometry_pulse_to_meter;
+  double raisa_encoder_odometry_pulse_to_meter;
+  double raisa_roda_pulse_roda_to_meter;
   double raisa_odometry_offset_x;
   double raisa_odometry_offset_y;
+  double raisa_roda_offset_x;
+  double raisa_roda_offset_y;
   //-----Timer
   rclcpp::TimerBase::SharedPtr tim_100hz;
   //-----Subscriber
@@ -27,22 +30,32 @@ class PoseEstimator : public rclcpp::Node {
   // =====================
   uint16_t encoder_odometry0;
   uint16_t encoder_odometry1;
+  uint16_t encoder_roda0;
+  uint16_t encoder_roda1;
+  uint16_t encoder_roda2;
   float gyroscope;
 
   // Pose and twist
   // ==============
   geometry_msgs::msg::Twist odometry_twist;
   geometry_msgs::msg::Pose2D odometry_pose2d;
+  geometry_msgs::msg::Twist odometry_twist_aux;
+  geometry_msgs::msg::Pose2D odometry_pose2d_aux;
 
   PoseEstimator() : Node("pose_estimator") {
     //-----Parameter
-    this->declare_parameter("raisa.conversion.encoder_odometry_pulse_to_meter", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("raisa.conversion.odometry_pulse_to_meter", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("raisa.conversion.roda_pulse_to_meter", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("raisa.odometry.offset_x", rclcpp::PARAMETER_DOUBLE);
     this->declare_parameter("raisa.odometry.offset_y", rclcpp::PARAMETER_DOUBLE);
-    this->get_parameter(
-        "raisa.conversion.encoder_odometry_pulse_to_meter", raisa_conversion_encoder_odometry_pulse_to_meter);
+    this->declare_parameter("raisa.roda.offset_x", rclcpp::PARAMETER_DOUBLE);
+    this->declare_parameter("raisa.roda.offset_y", rclcpp::PARAMETER_DOUBLE);
+    this->get_parameter("raisa.conversion.odometry_pulse_to_meter", raisa_encoder_odometry_pulse_to_meter);
+    this->get_parameter("raisa.conversion.roda_pulse_to_meter", raisa_roda_pulse_roda_to_meter);
     this->get_parameter("raisa.odometry.offset_x", raisa_odometry_offset_x);
     this->get_parameter("raisa.odometry.offset_y", raisa_odometry_offset_y);
+    this->get_parameter("raisa.roda.offset_x", raisa_roda_offset_x);
+    this->get_parameter("raisa.roda.offset_y", raisa_roda_offset_y);
     //-----Timer
     tim_100hz = this->create_wall_timer(10ms, std::bind(&PoseEstimator::cllbck_tim_100hz, this));
     //-----Subscriber
@@ -71,6 +84,9 @@ class PoseEstimator : public rclcpp::Node {
   void cllbck_sub_stm32_to_pc(const raisa_interfaces::msg::Stm32ToPc::SharedPtr msg) {
     encoder_odometry0 = msg->encoder_odometry0;
     encoder_odometry1 = msg->encoder_odometry1;
+    encoder_roda0 = msg->encoder_roda0;
+    encoder_roda1 = msg->encoder_roda1;
+    encoder_roda2 = msg->encoder_roda2;
     gyroscope = msg->gyroscope;
 
     // =================================
@@ -86,14 +102,33 @@ class PoseEstimator : public rclcpp::Node {
     int16_t d_encoder0 = 0, d_encoder1 = 0;
     delta_encoder(encoder_odometry0, encoder_odometry1, d_encoder0, d_encoder1);
     if (abs(d_encoder0) > 16384 || abs(d_encoder1) > 16384) {
-      RCLCPP_ERROR(this->get_logger(), "Delta encoder value is too big (%d, %d)", d_encoder0, d_encoder1);
+      RCLCPP_ERROR(
+          this->get_logger(),
+          "Delta encoder value is too big (%d, %d). Possible of connection error.",
+          d_encoder0,
+          d_encoder1);
+      return;
+    }
+
+    int16_t d_encoder0_aux = 0, d_encoder1_aux = 0, d_encoder2_aux = 0;
+    delta_encoder_aux(encoder_roda0, encoder_roda1, encoder_roda2, d_encoder0_aux, d_encoder1_aux, d_encoder2_aux);
+    if (abs(d_encoder0_aux) > 2048 || abs(d_encoder1_aux) > 2048 || abs(d_encoder2_aux) > 2048) {
+      RCLCPP_ERROR(
+          this->get_logger(),
+          "Delta encoder aux value is too big (%d, %d, %d). Possible of connection error.",
+          d_encoder0_aux,
+          d_encoder1_aux,
+          d_encoder2_aux);
       return;
     }
 
     float d_gyroscope = 0;
     delta_gyroscope(gyroscope, d_gyroscope);
     if (abs(d_gyroscope) > 90) {
-      RCLCPP_ERROR(this->get_logger(), "Delta gyroscope value is too big (%f)", d_gyroscope);
+      RCLCPP_ERROR(
+          this->get_logger(),
+          "Delta gyroscope sensor value is too big (%f). Possible of connection error.",
+          d_gyroscope);
       return;
     }
 
@@ -111,10 +146,10 @@ class PoseEstimator : public rclcpp::Node {
 
     temp_pose2d.x +=
         (d_encoder0 * cosf(temp_pose2d.theta + 0.7853981634) + d_encoder1 * cosf(temp_pose2d.theta - 0.7853981634)) *
-        raisa_conversion_encoder_odometry_pulse_to_meter;
+        raisa_encoder_odometry_pulse_to_meter;
     temp_pose2d.y +=
         (d_encoder0 * sinf(temp_pose2d.theta + 0.7853981634) + d_encoder1 * sinf(temp_pose2d.theta - 0.7853981634)) *
-        raisa_conversion_encoder_odometry_pulse_to_meter;
+        raisa_encoder_odometry_pulse_to_meter;
 
     temp_pose2d.theta += d_gyroscope * M_PI / 180;
     if (temp_pose2d.theta > M_PI) {
@@ -171,15 +206,71 @@ class PoseEstimator : public rclcpp::Node {
     msg_odom.twist.covariance[28] = 1e6;
     msg_odom.twist.covariance[35] = 1e-12;
     pub_odom->publish(msg_odom);
+
+    // =================================
+
+    static geometry_msgs::msg::Pose2D temp_pose2d_aux;
+
+    static bool first_time_aux = true;
+    if (first_time_aux == true) {
+      temp_pose2d_aux.x = -raisa_roda_offset_x;
+      temp_pose2d_aux.y = -raisa_roda_offset_y;
+      temp_pose2d_aux.theta = 0;
+      first_time_aux = false;
+    }
+
+    temp_pose2d_aux.x += (d_encoder0_aux * cosf(temp_pose2d_aux.theta + 2.6179938780) +
+                          d_encoder1_aux * cosf(temp_pose2d_aux.theta + 0.5235987756) +
+                          d_encoder2_aux * cosf(temp_pose2d_aux.theta - 1.5707963268)) *
+                         raisa_roda_pulse_roda_to_meter;
+    temp_pose2d_aux.y += (d_encoder0_aux * sinf(temp_pose2d_aux.theta + 2.6179938780) +
+                          d_encoder1_aux * sinf(temp_pose2d_aux.theta + 0.5235987756) +
+                          d_encoder2_aux * sinf(temp_pose2d_aux.theta - 1.5707963268)) *
+                         raisa_roda_pulse_roda_to_meter;
+
+    temp_pose2d_aux.theta += d_gyroscope * M_PI / 180;
+    if (temp_pose2d_aux.theta > M_PI) {
+      temp_pose2d_aux.theta -= 2 * M_PI;
+    } else if (temp_pose2d_aux.theta < -M_PI) {
+      temp_pose2d_aux.theta += 2 * M_PI;
+    }
+
+    // =================================
+
+    static geometry_msgs::msg::Pose2D temp_pose2d0_aux;
+    static geometry_msgs::msg::Pose2D temp_pose2d1_aux;
+    temp_pose2d0_aux = temp_pose2d1_aux;
+
+    double offset_r_aux = sqrt(pow(raisa_roda_offset_x, 2) + pow(raisa_roda_offset_y, 2));
+    double offset_a_aux = atan2(raisa_roda_offset_y, raisa_roda_offset_x);
+    temp_pose2d1_aux.x = temp_pose2d_aux.x + offset_r_aux * cosf(temp_pose2d_aux.theta + offset_a_aux);
+    temp_pose2d1_aux.y = temp_pose2d_aux.y + offset_r_aux * sinf(temp_pose2d_aux.theta + offset_a_aux);
+    temp_pose2d1_aux.theta = temp_pose2d.theta;
+
+    // =================================
+
+    odometry_pose2d_aux.x = temp_pose2d1_aux.x;
+    odometry_pose2d_aux.y = temp_pose2d1_aux.y;
+    odometry_pose2d_aux.theta = temp_pose2d1_aux.theta;
+
+    double twist_r_aux =
+        sqrt(pow(temp_pose2d1_aux.x - temp_pose2d0_aux.x, 2) + pow(temp_pose2d1_aux.y - temp_pose2d0_aux.y, 2));
+    double twist_a_aux = atan2(temp_pose2d1_aux.y - temp_pose2d0_aux.y, temp_pose2d1_aux.x - temp_pose2d0_aux.x) -
+                         temp_pose2d0_aux.theta;
+    odometry_twist_aux.linear.x = twist_r_aux * cosf(twist_a_aux) / dt;
+    odometry_twist_aux.linear.y = twist_r_aux * sinf(twist_a_aux) / dt;
+    odometry_twist_aux.angular.z = d_gyroscope * M_PI / 180 / dt;
   }
 
   //====================================
 
   bool pose_estimator_init() {
-    RCLCPP_INFO(
-        this->get_logger(), "Encoder Odometry Pulse to Meter: %f", raisa_conversion_encoder_odometry_pulse_to_meter);
-    RCLCPP_INFO(this->get_logger(), "Offset X: %f", raisa_odometry_offset_x);
-    RCLCPP_INFO(this->get_logger(), "Offset Y: %f", raisa_odometry_offset_y);
+    RCLCPP_INFO(this->get_logger(), "Odometry Pulse to Meter: %f", raisa_encoder_odometry_pulse_to_meter);
+    RCLCPP_INFO(this->get_logger(), "Roda Pulse to Meter: %f", raisa_roda_pulse_roda_to_meter);
+    RCLCPP_INFO(this->get_logger(), "Odometry Offset X: %f", raisa_odometry_offset_x);
+    RCLCPP_INFO(this->get_logger(), "Odometry Offset Y: %f", raisa_odometry_offset_y);
+    RCLCPP_INFO(this->get_logger(), "Roda Offset X: %f", raisa_roda_offset_x);
+    RCLCPP_INFO(this->get_logger(), "Roda Offset Y: %f", raisa_roda_offset_y);
 
     return true;
   }
@@ -218,6 +309,55 @@ class PoseEstimator : public rclcpp::Node {
 
     last_encoder0 = encoder0;
     last_encoder1 = encoder1;
+  }
+
+  void delta_encoder_aux(
+      uint16_t encoder0,
+      uint16_t encoder1,
+      uint16_t encoder2,
+      int16_t &d_encoder0,
+      int16_t &d_encoder1,
+      int16_t &d_encoder2) {
+    static bool is_initialized = false;
+    static uint16_t last_encoder0 = 0;
+    static uint16_t last_encoder1 = 0;
+    static uint16_t last_encoder2 = 0;
+
+    if (is_initialized == false && (last_encoder0 == 0 || last_encoder1 == 0 || last_encoder2 == 0)) {
+      last_encoder0 = encoder0;
+      last_encoder1 = encoder1;
+      last_encoder2 = encoder2;
+      is_initialized = true;
+      return;
+    }
+
+    if (encoder0 < 1024 && last_encoder0 > 3072) {
+      d_encoder0 = encoder0 - last_encoder0 + 4096;
+    } else if (encoder0 > 3072 && last_encoder0 < 1024) {
+      d_encoder0 = encoder0 - last_encoder0 - 4096;
+    } else {
+      d_encoder0 = encoder0 - last_encoder0;
+    }
+
+    if (encoder1 < 1024 && last_encoder1 > 3072) {
+      d_encoder1 = encoder1 - last_encoder1 + 4096;
+    } else if (encoder1 > 3072 && last_encoder1 < 1024) {
+      d_encoder1 = encoder1 - last_encoder1 - 4096;
+    } else {
+      d_encoder1 = encoder1 - last_encoder1;
+    }
+
+    if (encoder2 < 1024 && last_encoder2 > 3072) {
+      d_encoder2 = encoder2 - last_encoder2 + 4096;
+    } else if (encoder2 > 3072 && last_encoder2 < 1024) {
+      d_encoder2 = encoder2 - last_encoder2 - 4096;
+    } else {
+      d_encoder2 = encoder2 - last_encoder2;
+    }
+
+    last_encoder0 = encoder0;
+    last_encoder1 = encoder1;
+    last_encoder2 = encoder2;
   }
 
   void delta_gyroscope(float gyroscope, float &d_gyroscope) {

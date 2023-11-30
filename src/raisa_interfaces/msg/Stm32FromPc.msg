@@ -1,4 +1,4 @@
 uint8 mode
-uint16 dx
-uint16 dy
-uint16 dtheta
+int16 dx
+int16 dy
+int16 dtheta
