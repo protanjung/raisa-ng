@@ -10,6 +10,7 @@ set(var_dependencies
     pandu_ros2_kit
     raisa_interfaces
     rclcpp
+    std_srvs
     tf2_geometry_msgs)
 
 # find dependencies

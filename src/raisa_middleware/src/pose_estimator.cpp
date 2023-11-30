@@ -3,6 +3,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "raisa_interfaces/msg/stm32_to_pc.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "std_srvs/srv/empty.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 #define RADIUS(b, a) sqrt(pow(b.x - a.x, 2) + pow(b.y - a.y, 2))
@@ -25,6 +26,8 @@ class PoseEstimator : public rclcpp::Node {
   rclcpp::Subscription<raisa_interfaces::msg::Stm32ToPc>::SharedPtr sub_stm32_to_pc;
   //-----Publisher
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_odom;
+  //-----Service server
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_pose_reset;
 
   // Encoder dan gyroscope
   // =====================
@@ -37,10 +40,10 @@ class PoseEstimator : public rclcpp::Node {
 
   // Pose and twist
   // ==============
+  geometry_msgs::msg::Pose2D odometry_pose2d, temp_pose2d;
   geometry_msgs::msg::Twist odometry_twist;
-  geometry_msgs::msg::Pose2D odometry_pose2d;
+  geometry_msgs::msg::Pose2D odometry_pose2d_aux, temp_pose2d_aux;
   geometry_msgs::msg::Twist odometry_twist_aux;
-  geometry_msgs::msg::Pose2D odometry_pose2d_aux;
 
   PoseEstimator() : Node("pose_estimator") {
     //-----Parameter
@@ -63,6 +66,10 @@ class PoseEstimator : public rclcpp::Node {
         "stm32/to_pc", 10, std::bind(&PoseEstimator::cllbck_sub_stm32_to_pc, this, std::placeholders::_1));
     //-----Publisher
     pub_odom = this->create_publisher<nav_msgs::msg::Odometry>("odom", 10);
+    //-----Service server
+    srv_pose_reset = this->create_service<std_srvs::srv::Empty>(
+        "pose/reset",
+        std::bind(&PoseEstimator::cllbck_srv_pose_reset, this, std::placeholders::_1, std::placeholders::_2));
 
     if (pose_estimator_init() == false) {
       RCLCPP_ERROR(this->get_logger(), "Pose estimator init failed");
@@ -91,11 +98,11 @@ class PoseEstimator : public rclcpp::Node {
 
     // =================================
 
-    static rclcpp::Time last_time = this->now();
-    static rclcpp::Time current_time = this->now();
-    last_time = current_time;
-    current_time = this->now();
-    double dt = (current_time - last_time).seconds();
+    static rclcpp::Time time_old = this->now();
+    static rclcpp::Time time_now = this->now();
+    time_old = time_now;
+    time_now = this->now();
+    double dt = (time_now - time_old).seconds();
 
     // =================================
 
@@ -133,8 +140,6 @@ class PoseEstimator : public rclcpp::Node {
     }
 
     // =================================
-
-    static geometry_msgs::msg::Pose2D temp_pose2d;
 
     static bool first_time = true;
     if (first_time == true) {
@@ -185,7 +190,7 @@ class PoseEstimator : public rclcpp::Node {
     // =================================
 
     nav_msgs::msg::Odometry msg_odom;
-    msg_odom.header.stamp = current_time;
+    msg_odom.header.stamp = time_now;
     msg_odom.header.frame_id = "odom";
     msg_odom.child_frame_id = "base_link";
     msg_odom.pose.pose.position.x = odometry_pose2d.x;
@@ -208,8 +213,6 @@ class PoseEstimator : public rclcpp::Node {
     pub_odom->publish(msg_odom);
 
     // =================================
-
-    static geometry_msgs::msg::Pose2D temp_pose2d_aux;
 
     static bool first_time_aux = true;
     if (first_time_aux == true) {
@@ -260,6 +263,22 @@ class PoseEstimator : public rclcpp::Node {
     odometry_twist_aux.linear.x = twist_r_aux * cosf(twist_a_aux) / dt;
     odometry_twist_aux.linear.y = twist_r_aux * sinf(twist_a_aux) / dt;
     odometry_twist_aux.angular.z = d_gyroscope * M_PI / 180 / dt;
+  }
+
+  //====================================
+
+  void cllbck_srv_pose_reset(
+      const std::shared_ptr<std_srvs::srv::Empty::Request> req, std::shared_ptr<std_srvs::srv::Empty::Response> res) {
+    (void)req;
+    (void)res;
+
+    temp_pose2d.x = -raisa_odometry_offset_x;
+    temp_pose2d.y = -raisa_odometry_offset_y;
+    temp_pose2d.theta = 0;
+
+    temp_pose2d_aux.x = -raisa_roda_offset_x;
+    temp_pose2d_aux.y = -raisa_roda_offset_y;
+    temp_pose2d_aux.theta = 0;
   }
 
   //====================================

@@ -13,6 +13,7 @@
   <depend>pandu_ros2_kit</depend>
   <depend>raisa_interfaces</depend>
   <depend>rclcpp</depend>
+  <depend>std_srvs</depend>
   <depend>tf2_geometry_msgs</depend>
 
 

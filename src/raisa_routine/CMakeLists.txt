@@ -7,8 +7,10 @@ endif()
 
 set(var_dependencies
     nav_msgs
+    pandu_ros2_kit
     raisa_interfaces
     rclcpp
+    std_srvs
     tf2_geometry_msgs)
 
 # find dependencies
@@ -19,7 +21,8 @@ endforeach()
 
 include_directories(include)
 
-add_executable(routine src/routine_main.cpp src/routine_motion.cpp)
+add_executable(routine src/routine_main.cpp src/routine_motion.cpp
+                       src/routine_process.cpp)
 ament_target_dependencies(routine ${var_dependencies})
 
 install(TARGETS routine DESTINATION lib/${PROJECT_NAME})

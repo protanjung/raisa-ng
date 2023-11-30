@@ -14,7 +14,12 @@ foreach(dependency ${var_dependencies})
   find_package(${dependency} REQUIRED)
 endforeach()
 
-set(msg_files msg/Dummy.msg msg/Stm32FromPc.msg msg/Stm32ToPc.msg)
+set(msg_files
+    msg/Dummy.msg
+    msg/BasestationFromPc.msg
+    msg/BasestationToPc.msg
+    msg/Stm32FromPc.msg
+    msg/Stm32ToPc.msg)
 set(srv_files srv/Dummy.srv)
 rosidl_generate_interfaces(
   ${PROJECT_NAME}

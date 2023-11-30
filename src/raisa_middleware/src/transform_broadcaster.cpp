@@ -10,6 +10,7 @@ using namespace std::chrono_literals;
 class TransformBroadcaster : public rclcpp::Node {
  public:
   //-----Parameter
+  std::vector<double> raisa_tf_body;
   std::vector<double> raisa_tf_camera;
   std::vector<double> raisa_tf_lidar;
   //-----Timer
@@ -22,11 +23,12 @@ class TransformBroadcaster : public rclcpp::Node {
 
   TransformBroadcaster() : Node("transform_broadcaster") {
     //-----Parameter
+    this->declare_parameter("raisa.tf.body", std::vector<double>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
     this->declare_parameter("raisa.tf.camera", std::vector<double>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
     this->declare_parameter("raisa.tf.lidar", std::vector<double>{0.0, 0.0, 0.0, 0.0, 0.0, 0.0});
+    this->get_parameter("raisa.tf.body", raisa_tf_body);
     this->get_parameter("raisa.tf.camera", raisa_tf_camera);
     this->get_parameter("raisa.tf.lidar", raisa_tf_lidar);
-
     //-----Timer
     tim_100hz = this->create_wall_timer(10ms, std::bind(&TransformBroadcaster::cllbck_tim_100hz, this));
     //-----Subscriber
@@ -73,6 +75,7 @@ class TransformBroadcaster : public rclcpp::Node {
   //====================================
 
   bool transform_broadcaster_init() {
+    send_static_transform(raisa_tf_body, "base_link", "body_link");
     send_static_transform(raisa_tf_camera, "base_link", "camera_link");
     send_static_transform(raisa_tf_lidar, "base_link", "lidar_link");
 

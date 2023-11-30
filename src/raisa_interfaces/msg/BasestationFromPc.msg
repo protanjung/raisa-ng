@@ -1,0 +1,8 @@
+uint8 status
+float32 x
+float32 y
+float32 theta
+float32 battery_voltage
+float32 battery_current
+float32 battery_soc
+uint8 battery_charging
