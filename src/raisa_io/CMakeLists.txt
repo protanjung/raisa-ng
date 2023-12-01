@@ -25,13 +25,19 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable(io_basestation src/io_basestation.cpp)
 add_executable(io_lslidar_n301 src/io_lslidar_n301.cpp)
 add_executable(io_stm32 src/io_stm32.cpp)
+add_executable(io_ui src/io_ui.cpp)
 ament_target_dependencies(io_basestation ${var_dependencies})
 ament_target_dependencies(io_lslidar_n301 ${var_dependencies})
 ament_target_dependencies(io_stm32 ${var_dependencies})
+ament_target_dependencies(io_ui ${var_dependencies})
 target_link_libraries(io_lslidar_n301 ${PCL_LIBRARIES})
 
-install(TARGETS io_basestation io_lslidar_n301 io_stm32
-        DESTINATION lib/${PROJECT_NAME})
+install(
+  TARGETS io_basestation
+          io_lslidar_n301
+          io_stm32
+          io_ui
+  DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

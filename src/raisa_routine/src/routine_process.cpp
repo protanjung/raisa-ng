@@ -10,6 +10,8 @@ void Routine::process_all() {
     button_now[i + 16] = stm32_to_pc.tombol & (1 << i);
   }
 
+  pp_active.update_all();
+
   process_marker();
   process_storage();
   process_mission();
@@ -23,6 +25,9 @@ void Routine::process_marker() {
   std::vector<geometry_msgs::msg::Point> ps;
   geometry_msgs::msg::Point p;
 
+  // ============
+  // Body markers
+  // ============
   _marker.cube(
       "body_link",
       "body",
@@ -34,8 +39,9 @@ void Routine::process_marker() {
       raisa_body_width,
       raisa_body_height);
 
-  // ===================================
-
+  // =============
+  // Route markers
+  // =============
   ps.clear();
   for (auto x : list_route) {
     p.x = x.x;
@@ -45,6 +51,9 @@ void Routine::process_marker() {
   _marker.sphere_list(
       "map", "route", 1, ps, rpy_to_quaternion(0, 0, 0), std::vector<float>{0, 1, 1, 0.5}, 0.2, 0.2, 0.05);
 
+  // ===========
+  // POI markers
+  // ===========
   ps.clear();
   for (auto x : list_poi) {
     p.x = x.x;
@@ -72,11 +81,27 @@ void Routine::process_marker() {
     p.y = x.gate_y;
     ps.push_back(p);
   }
-  _marker.line_list("map", "poi", 3, ps, std::vector<float>{0, 0, 0, 0.5}, 0.05);
+  _marker.line_list("map", "poi", 3, ps, std::vector<float>{0.5, 0.5, 0.5, 1}, 0.01);
 
-  // ===================================
+  // ============
+  // Path markers
+  // ============
+  _marker.line_strip("map", "path", 1, path_active, std::vector<float>{0, 0, 0, 1}, 0.02);
 
-  _marker.line_strip("map", "path", 1, path_active, std::vector<float>{1, 0, 0, 0.5}, 0.05);
+  // ====================
+  // Pure pursuit markers
+  // ====================
+  ps.clear();
+  for (int i = 0; i < 91; i++) {
+    p.x = pp_active.look_ahead_distance * cos(i * M_PI / 45);
+    p.y = pp_active.look_ahead_distance * sin(i * M_PI / 45);
+    ps.push_back(p);
+  }
+  _marker.line_strip("body_link", "pp", 1, ps, std::vector<float>{0, 1, 0, 0.5}, 0.01);
+
+  p.x = pp_active.goal_x;
+  p.y = pp_active.goal_y;
+  _marker.sphere("map", "pp", 2, p, rpy_to_quaternion(0, 0, 0), std::vector<float>{1, 1, 0, 0.5}, 0.1, 0.1, 0.05);
 }
 
 // =============================================================================
@@ -200,7 +225,7 @@ void Routine::process_storage() {
 
 void Routine::process_mission() {
   float tgt_dx = 0, tgt_dy = 0, tgt_dtheta = 0;
-  float tgt_a_linear = 2.0, tgt_a_angular = M_PI;
+  float tgt_a_linear = 2.0, tgt_a_angular = 2 * M_PI;
 
   // ===================================
 
@@ -229,6 +254,10 @@ void Routine::process_mission() {
         algorithm_storage = 0;
         algorithm_mission = 2;
         RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 2 (ROUTING MODE)");
+      }
+      if (BTN_11) {
+        algorithm_mission = 3;
+        RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 3 (OPERATION MODE)");
       }
 
       break;
@@ -312,6 +341,23 @@ void Routine::process_mission() {
         algorithm_storage = 1;
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 2 (ROUTING MODE) -> 0 (IDDLE)");
+      }
+
+      break;
+    }
+    // =============================================================
+    // OPERATTION MODE: Robot operate autonomously to do the mission
+    // =============================================================
+    case 3: {
+      tgt_dx = 0;
+      tgt_dy = 0;
+      tgt_dtheta = 0;
+
+      // -------------------------------
+
+      if (BTN_7) {
+        algorithm_mission = 0;
+        RCLCPP_WARN(this->get_logger(), "State 3 (OPERATION MODE) -> 0 (IDDLE)");
       }
 
       break;

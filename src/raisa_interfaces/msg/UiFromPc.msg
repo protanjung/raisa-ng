@@ -1,0 +1,2 @@
+uint8 state_machine
+uint8 human_presence

@@ -48,6 +48,8 @@ Routine::Routine() : Node("routine") {
 void Routine::cllbck_tim_10hz() {
   if (!_marker.is_initialized()) { _marker.init(this->shared_from_this()); }
 
+  if (!pp_active.is_initialized()) { pp_active.init(&fb_x, &fb_y, &fb_theta, &path_active, 0.25, 0.50); }
+
   process_all();
 }
 

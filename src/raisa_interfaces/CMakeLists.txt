@@ -19,7 +19,9 @@ set(msg_files
     msg/BasestationFromPc.msg
     msg/BasestationToPc.msg
     msg/Stm32FromPc.msg
-    msg/Stm32ToPc.msg)
+    msg/Stm32ToPc.msg
+    msg/UiFromPc.msg
+    msg/UiToPc.msg)
 set(srv_files srv/Dummy.srv)
 rosidl_generate_interfaces(
   ${PROJECT_NAME}

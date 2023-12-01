@@ -5,6 +5,7 @@
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "pandu_ros2_kit/help_marker.hpp"
+#include "pandu_ros2_kit/pure_pursuit.hpp"
 #include "raisa_interfaces/msg/basestation_from_pc.hpp"
 #include "raisa_interfaces/msg/basestation_to_pc.hpp"
 #include "raisa_interfaces/msg/stm32_from_pc.hpp"
@@ -109,9 +110,10 @@ class Routine : public rclcpp::Node {
   std::vector<route> list_route;
   std::vector<poi> list_poi;
 
-  // Path
-  // ====
+  // Path and pure pursuit
+  // =====================
   std::vector<geometry_msgs::msg::Point> path_active;
+  PurePursuit pp_active;
 
   Routine();
 

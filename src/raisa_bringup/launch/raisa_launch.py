@@ -185,6 +185,13 @@ def generate_launch_description():
         parameters=[{'stm32.ip': '192.168.50.2',
                      'stm32.port': 9798}])
 
+    io_ui = Node(
+        package='raisa_io',
+        executable='io_ui',
+        name='io_ui',
+        respawn=True,
+        parameters=[{'ui.port': 9899}])
+
     pose_estimator = Node(
         package='raisa_middleware',
         executable='pose_estimator',
@@ -221,6 +228,7 @@ def generate_launch_description():
         io_basestation,
         io_lslidar_n301,
         io_stm32,
+        io_ui,
         pose_estimator,
         transform_broadcaster,
         routine,
