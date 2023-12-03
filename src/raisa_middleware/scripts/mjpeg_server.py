@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 
 from ament_index_python.packages import get_package_share_directory
+from cv_bridge import CvBridge
 from flask import Flask, Response, render_template_string, request
 from rclpy.node import Node
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
 import cv2 as cv
 import numpy as np
 import rclpy

@@ -10,10 +10,12 @@ set(var_dependencies
     pandu_ros2_kit
     pcl_conversions
     raisa_interfaces
-    rclcpp)
+    rclcpp
+    rclpy)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(PCL REQUIRED)
 find_package(OpenCV REQUIRED)
 foreach(dependency ${var_dependencies})
@@ -44,6 +46,10 @@ install(
           io_ui
           io_vision
   DESTINATION lib/${PROJECT_NAME})
+
+ament_python_install_package(${PROJECT_NAME})
+
+install(PROGRAMS scripts/io_thermal.py DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

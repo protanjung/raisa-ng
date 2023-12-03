@@ -185,6 +185,12 @@ def generate_launch_description():
         parameters=[{'stm32.ip': '192.168.50.2',
                      'stm32.port': 9798}])
 
+    io_thermal = Node(
+        package='raisa_io',
+        executable='io_thermal.py',
+        name='io_thermal',
+        respawn=True)
+
     io_ui = Node(
         package='raisa_io',
         executable='io_ui',
@@ -205,7 +211,7 @@ def generate_launch_description():
         name='mjpeg_server',
         respawn=True,
         parameters=[{'mjpeg_server.topics': ['/image_bgr', '/image_gray'],
-                     'mjpeg_server.port': 8080}])
+                     'mjpeg_server.port': 9999}])
 
     obstacle_detector = Node(
         package='raisa_middleware',
@@ -249,6 +255,7 @@ def generate_launch_description():
         io_basestation,
         io_lslidar_n301,
         io_stm32,
+        io_thermal,
         io_ui,
         io_vision,
         mjpeg_server,
