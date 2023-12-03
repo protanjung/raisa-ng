@@ -12,11 +12,13 @@ set(var_dependencies
     pcl_ros
     raisa_interfaces
     rclcpp
+    rclpy
     std_srvs
     tf2_geometry_msgs)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(PCL REQUIRED)
 foreach(dependency ${var_dependencies})
   find_package(${dependency} REQUIRED)
@@ -36,6 +38,12 @@ target_link_libraries(obstacle_detector ${PCL_LIBRARIES})
 
 install(TARGETS obstacle_detector pose_estimator transform_broadcaster
         DESTINATION lib/${PROJECT_NAME})
+
+ament_python_install_package(${PROJECT_NAME})
+
+install(PROGRAMS scripts/mjpeg_server.py DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY assets DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

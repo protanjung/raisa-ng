@@ -14,7 +14,7 @@ void Routine::jalan_manual(float _dx, float _dy, float _dtheta) {
 }
 
 void Routine::jalan_manual_lapangan(float _dx, float _dy, float _dtheta) {
-  static float buffer_dx = 0, buffer_dy = 0, buffer_dtheta = 0;
+  static float buffer_dx = 0, buffer_dy = 0;
   buffer_dx = _dx * cosf(fb_theta) + _dy * sinf(fb_theta);
   buffer_dy = _dx * -sinf(fb_theta) + _dy * cosf(fb_theta);
 

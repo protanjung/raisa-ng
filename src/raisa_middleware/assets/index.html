@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>MJPEG Server</title>
+
+    <link rel="stylesheet" href="https://cdn.simplecss.org/simple.css" />
+  </head>
+
+  <body>
+    <header>
+      <h1>MJPEG Server</h1>
+      <p>Topics: {{ topics|length }}</p>
+    </header>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Topic</th>
+        </tr>
+      </thead>
+      {% for topic in topics %}
+      <tr>
+        <td><a href="{{ topic }}">{{ topic }}</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>

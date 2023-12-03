@@ -63,6 +63,11 @@ class IOVision : public rclcpp::Node {
   }
 
   bool io_vision_routine() {
+    if (!cap.isOpened()) {
+      RCLCPP_ERROR(this->get_logger(), "Camera is not opened");
+      return true;
+    }
+
     if (!cap.read(frame_bgr)) {
       RCLCPP_ERROR(this->get_logger(), "Failed to read camera");
       return false;

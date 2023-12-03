@@ -199,6 +199,14 @@ def generate_launch_description():
         respawn=True,
         parameters=[{'camera.path': '/dev/v4l/by-id/usb-046d_Logitech_Webcam_C930e_8ADF7FCE-video-index0'}])
 
+    mjpeg_server = Node(
+        package='raisa_middleware',
+        executable='mjpeg_server.py',
+        name='mjpeg_server',
+        respawn=True,
+        parameters=[{'mjpeg_server.topics': ['/image_bgr', '/image_gray'],
+                     'mjpeg_server.port': 8080}])
+
     obstacle_detector = Node(
         package='raisa_middleware',
         executable='obstacle_detector',
@@ -243,6 +251,7 @@ def generate_launch_description():
         io_stm32,
         io_ui,
         io_vision,
+        mjpeg_server,
         obstacle_detector,
         pose_estimator,
         transform_broadcaster,
