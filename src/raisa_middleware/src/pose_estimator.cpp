@@ -6,9 +6,6 @@
 #include "std_srvs/srv/empty.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
-#define RADIUS(b, a) sqrt(pow(b.x - a.x, 2) + pow(b.y - a.y, 2))
-#define ANGLE(b, a) atan2(b.y - a.y, b.x - a.x)
-
 using namespace std::chrono_literals;
 
 class PoseEstimator : public rclcpp::Node {

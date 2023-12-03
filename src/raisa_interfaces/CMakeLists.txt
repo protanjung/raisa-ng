@@ -18,6 +18,8 @@ set(msg_files
     msg/Dummy.msg
     msg/BasestationFromPc.msg
     msg/BasestationToPc.msg
+    msg/ObstacleData.msg
+    msg/ObstacleParameter.msg
     msg/Stm32FromPc.msg
     msg/Stm32ToPc.msg
     msg/UiFromPc.msg

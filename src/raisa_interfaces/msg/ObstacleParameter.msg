@@ -1,0 +1,3 @@
+float32 laser_scan_distance
+bool status_steering
+bool status_velocity

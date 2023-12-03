@@ -1,17 +1,6 @@
 #include "raisa_routine/routine.hpp"
 
 void Routine::process_all() {
-  for (int i = 0; i < 16; i++) {
-    button_old[i] = button_now[i];
-    button_now[i] = basestation_to_pc.tombol & (1 << i);
-  }
-  for (int i = 0; i < 2; i++) {
-    button_old[i + 16] = button_now[i + 16];
-    button_now[i + 16] = stm32_to_pc.tombol & (1 << i);
-  }
-
-  pp_active.update_all();
-
   process_marker();
   process_storage();
   process_mission();
@@ -224,8 +213,34 @@ void Routine::process_storage() {
 // =============================================================================
 
 void Routine::process_mission() {
+  static rclcpp::Time time_old = this->now();
+  static rclcpp::Time time_now = this->now();
+  time_old = time_now;
+  time_now = this->now();
+  double dt = (time_now - time_old).seconds();
+
+  // ===================================
+
+  // * Robot velocity target
   float tgt_dx = 0, tgt_dy = 0, tgt_dtheta = 0;
-  float tgt_a_linear = 2.0, tgt_a_angular = 2 * M_PI;
+
+  // * Pure pursuit's look ahead distance target
+  float tgt_look_ahead_distance = 0.5;
+  if (pp_active.look_ahead_distance < tgt_look_ahead_distance) {
+    pp_active.look_ahead_distance = fminf(pp_active.look_ahead_distance + 1.0 * dt, tgt_look_ahead_distance);
+  } else if (pp_active.look_ahead_distance > tgt_look_ahead_distance) {
+    pp_active.look_ahead_distance = fmaxf(pp_active.look_ahead_distance - 1.0 * dt, tgt_look_ahead_distance);
+  }
+
+  // * Obstacle detector's laser scan distance target
+  float tgt_laser_scan_distance = 1.2;
+  if (obstacle_parameter.laser_scan_distance < tgt_laser_scan_distance) {
+    obstacle_parameter.laser_scan_distance =
+        fminf(obstacle_parameter.laser_scan_distance + 1.0 * dt, tgt_laser_scan_distance);
+  } else if (obstacle_parameter.laser_scan_distance > tgt_laser_scan_distance) {
+    obstacle_parameter.laser_scan_distance =
+        fmaxf(obstacle_parameter.laser_scan_distance - 1.0 * dt, tgt_laser_scan_distance);
+  }
 
   // ===================================
 
@@ -349,9 +364,7 @@ void Routine::process_mission() {
     // OPERATTION MODE: Robot operate autonomously to do the mission
     // =============================================================
     case 3: {
-      tgt_dx = 0;
-      tgt_dy = 0;
-      tgt_dtheta = 0;
+      obstacle_influence(0.2, 0.0, pp_active.steering_angle, tgt_dx, tgt_dy, tgt_dtheta);
 
       // -------------------------------
 
@@ -366,7 +379,7 @@ void Routine::process_mission() {
 
   // ===================================
 
-  jalan_manual(tgt_dx, tgt_dy, tgt_dtheta, tgt_a_linear, tgt_a_angular);
+  jalan_manual(tgt_dx, tgt_dy, tgt_dtheta);
 }
 
 // =============================================================================
@@ -429,22 +442,7 @@ std::vector<geometry_msgs::msg::Point> Routine::generate_path(float _x0, float _
   return _path;
 }
 
-void Routine::publish_initialpose(float _x, float _y, float _theta) {
-  geometry_msgs::msg::PoseWithCovarianceStamped msg_initialpose;
-  msg_initialpose.header.frame_id = "map";
-  msg_initialpose.header.stamp = this->now();
-  msg_initialpose.pose.pose.position.x = _x;
-  msg_initialpose.pose.pose.position.y = _y;
-  msg_initialpose.pose.pose.position.z = 0;
-  msg_initialpose.pose.pose.orientation = rpy_to_quaternion(0, 0, _theta);
-  msg_initialpose.pose.covariance[0] = 1e-12;
-  msg_initialpose.pose.covariance[7] = 1e-12;
-  msg_initialpose.pose.covariance[14] = 1e6;
-  msg_initialpose.pose.covariance[21] = 1e6;
-  msg_initialpose.pose.covariance[28] = 1e6;
-  msg_initialpose.pose.covariance[35] = 1e-12;
-  pub_initialpose->publish(msg_initialpose);
-}
+// =============================================================================
 
 bool Routine ::slam_reset() {
   if (!cli_pose_reset->wait_for_service(std::chrono::seconds(1))) {
@@ -481,6 +479,8 @@ bool Routine::slam_mapping_mode() {
   return true;
 }
 
+// =============================================================================
+
 geometry_msgs::msg::Quaternion Routine::rpy_to_quaternion(float _roll, float _pitch, float _yaw) {
   tf2::Quaternion q_in;
   geometry_msgs::msg::Quaternion q_out;
@@ -489,4 +489,21 @@ geometry_msgs::msg::Quaternion Routine::rpy_to_quaternion(float _roll, float _pi
   tf2::convert(q_in, q_out);
 
   return q_out;
+}
+
+void Routine::publish_initialpose(float _x, float _y, float _theta) {
+  geometry_msgs::msg::PoseWithCovarianceStamped msg_initialpose;
+  msg_initialpose.header.frame_id = "map";
+  msg_initialpose.header.stamp = this->now();
+  msg_initialpose.pose.pose.position.x = _x;
+  msg_initialpose.pose.pose.position.y = _y;
+  msg_initialpose.pose.pose.position.z = 0;
+  msg_initialpose.pose.pose.orientation = rpy_to_quaternion(0, 0, _theta);
+  msg_initialpose.pose.covariance[0] = 1e-12;
+  msg_initialpose.pose.covariance[7] = 1e-12;
+  msg_initialpose.pose.covariance[14] = 1e6;
+  msg_initialpose.pose.covariance[21] = 1e6;
+  msg_initialpose.pose.covariance[28] = 1e6;
+  msg_initialpose.pose.covariance[35] = 1e-12;
+  pub_initialpose->publish(msg_initialpose);
 }

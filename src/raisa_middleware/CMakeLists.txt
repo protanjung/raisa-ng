@@ -8,6 +8,8 @@ endif()
 set(var_dependencies
     nav_msgs
     pandu_ros2_kit
+    pcl_conversions
+    pcl_ros
     raisa_interfaces
     rclcpp
     std_srvs
@@ -15,16 +17,24 @@ set(var_dependencies
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(PCL REQUIRED)
 foreach(dependency ${var_dependencies})
   find_package(${dependency} REQUIRED)
 endforeach()
 
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+add_executable(obstacle_detector src/obstacle_detector.cpp)
 add_executable(pose_estimator src/pose_estimator.cpp)
 add_executable(transform_broadcaster src/transform_broadcaster.cpp)
+ament_target_dependencies(obstacle_detector ${var_dependencies})
 ament_target_dependencies(pose_estimator ${var_dependencies})
 ament_target_dependencies(transform_broadcaster ${var_dependencies})
+target_link_libraries(obstacle_detector ${PCL_LIBRARIES})
 
-install(TARGETS pose_estimator transform_broadcaster
+install(TARGETS obstacle_detector pose_estimator transform_broadcaster
         DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)

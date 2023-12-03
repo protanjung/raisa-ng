@@ -192,6 +192,12 @@ def generate_launch_description():
         respawn=True,
         parameters=[{'ui.port': 9899}])
 
+    obstacle_detector = Node(
+        package='raisa_middleware',
+        executable='obstacle_detector',
+        name='obstacle_detector',
+        respawn=True)
+
     pose_estimator = Node(
         package='raisa_middleware',
         executable='pose_estimator',
@@ -229,6 +235,7 @@ def generate_launch_description():
         io_lslidar_n301,
         io_stm32,
         io_ui,
+        obstacle_detector,
         pose_estimator,
         transform_broadcaster,
         routine,

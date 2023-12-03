@@ -30,11 +30,17 @@ Routine::Routine() : Node("routine") {
       "stm32/to_pc", 10, std::bind(&Routine::cllbck_sub_stm32_to_pc, this, std::placeholders::_1));
   sub_basestation_to_pc = this->create_subscription<raisa_interfaces::msg::BasestationToPc>(
       "basestation/to_pc", 10, std::bind(&Routine::cllbck_sub_basestaion_to_pc, this, std::placeholders::_1));
+  sub_ui_to_pc = this->create_subscription<raisa_interfaces::msg::UiToPc>(
+      "ui/to_pc", 10, std::bind(&Routine::cllbck_sub_ui_to_pc, this, std::placeholders::_1));
+  sub_obstacle_data = this->create_subscription<raisa_interfaces::msg::ObstacleData>(
+      "obstacle/data", 10, std::bind(&Routine::cllbck_sub_obstacle_data, this, std::placeholders::_1));
   sub_odometry_filtered = this->create_subscription<nav_msgs::msg::Odometry>(
       "odometry/filtered", 10, std::bind(&Routine::cllbck_sub_odometry_filtered, this, std::placeholders::_1));
   //-----Publisher
   pub_stm32_from_pc = this->create_publisher<raisa_interfaces::msg::Stm32FromPc>("stm32/from_pc", 10);
   pub_basestation_from_pc = this->create_publisher<raisa_interfaces::msg::BasestationFromPc>("basestation/from_pc", 10);
+  pub_ui_from_pc = this->create_publisher<raisa_interfaces::msg::UiFromPc>("ui/from_pc", 10);
+  pub_obstacle_parameter = this->create_publisher<raisa_interfaces::msg::ObstacleParameter>("obstacle/parameter", 10);
   pub_initialpose = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("initialpose", 10);
   //-----Service client
   cli_pose_reset = this->create_client<std_srvs::srv::Empty>("pose/reset");
@@ -46,21 +52,37 @@ Routine::Routine() : Node("routine") {
 //====================================
 
 void Routine::cllbck_tim_10hz() {
+  static bool first_time = true;
+  if (first_time == true) {
+    obstacle_parameter.laser_scan_distance = 1.0;
+    obstacle_parameter.status_steering = true;
+    obstacle_parameter.status_velocity = true;
+    first_time = false;
+  }
+
   if (!_marker.is_initialized()) { _marker.init(this->shared_from_this()); }
 
   if (!pp_active.is_initialized()) { pp_active.init(&fb_x, &fb_y, &fb_theta, &path_active, 0.25, 0.50); }
+  if (!pp_kiri.is_initialized()) { pp_kiri.init(&fb_x, &fb_y, &fb_theta, &path_kiri, 0.25, 0.50); }
+  if (!pp_kanan.is_initialized()) { pp_kanan.init(&fb_x, &fb_y, &fb_theta, &path_kanan, 0.25, 0.50); }
+  pp_active.update_all();
+  pp_kiri.update_all();
+  pp_kanan.update_all();
+
+  for (int i = 0; i < 16; i++) {
+    button_old[i] = button_now[i];
+    button_now[i] = basestation_to_pc.tombol & (1 << i);
+  }
+  for (int i = 0; i < 2; i++) {
+    button_old[i + 16] = button_now[i + 16];
+    button_now[i + 16] = stm32_to_pc.tombol & (1 << i);
+  }
 
   process_all();
 }
 
 void Routine::cllbck_tim_50hz() {
-  bool temp_status_allow_motion = true;
-  if (status_battery_charging) { temp_status_allow_motion = false; }
-  status_allow_motion = temp_status_allow_motion;
-
-  // ===================================
-
-  stm32_from_pc.mode = status_allow_motion ? 1 : 0;
+  stm32_from_pc.mode = stm32_to_pc.battery_charging ? 0 : 1;
   stm32_from_pc.dx = cmd_dx_out * raisa_conversion_stm32_from_pc_linear_multiplier;
   stm32_from_pc.dy = cmd_dy_out * raisa_conversion_stm32_from_pc_linear_multiplier;
   stm32_from_pc.dtheta = cmd_dtheta_out * raisa_conversion_stm32_from_pc_angular_multiplier;
@@ -75,17 +97,23 @@ void Routine::cllbck_tim_50hz() {
   basestation_from_pc.battery_soc = stm32_to_pc.battery_soc;
   basestation_from_pc.battery_charging = stm32_to_pc.battery_charging;
   pub_basestation_from_pc->publish(basestation_from_pc);
+
+  ui_from_pc.state_machine = algorithm_mission;
+  ui_from_pc.human_presence = human_presence;
+  pub_ui_from_pc->publish(ui_from_pc);
+
+  pub_obstacle_parameter->publish(obstacle_parameter);
 }
 
 //====================================
 
-void Routine::cllbck_sub_stm32_to_pc(raisa_interfaces::msg::Stm32ToPc::SharedPtr msg) {
+void Routine::cllbck_sub_stm32_to_pc(const raisa_interfaces::msg::Stm32ToPc::SharedPtr msg) {
+  // Copy message
   stm32_to_pc = *msg;
-
-  status_battery_charging = msg->battery_charging;
 }
 
-void Routine::cllbck_sub_basestaion_to_pc(raisa_interfaces::msg::BasestationToPc::SharedPtr msg) {
+void Routine::cllbck_sub_basestaion_to_pc(const raisa_interfaces::msg::BasestationToPc::SharedPtr msg) {
+  // Copy message
   basestation_to_pc = *msg;
 
   cmd_dx_in = abs(-msg->dy) < 1000 ? 0
@@ -99,7 +127,17 @@ void Routine::cllbck_sub_basestaion_to_pc(raisa_interfaces::msg::BasestationToPc
                                            : MAP((float)-msg->dtheta, 3000, 10000, 0, 1);
 }
 
-void Routine::cllbck_sub_odometry_filtered(nav_msgs::msg::Odometry::SharedPtr msg) {
+void Routine::cllbck_sub_ui_to_pc(const raisa_interfaces::msg::UiToPc::SharedPtr msg) {
+  // Copy message
+  ui_to_pc = *msg;
+}
+
+void Routine::cllbck_sub_obstacle_data(const raisa_interfaces::msg::ObstacleData::SharedPtr msg) {
+  // Copy message
+  obstacle_data = *msg;
+}
+
+void Routine::cllbck_sub_odometry_filtered(const nav_msgs::msg::Odometry::SharedPtr msg) {
   tf2::Quaternion q;
   double roll, pitch, yaw;
   tf2::fromMsg(msg->pose.pose.orientation, q);

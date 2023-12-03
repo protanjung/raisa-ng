@@ -1,0 +1,6 @@
+float32 emergency
+float32 steering_right
+float32 steering_left
+float32 velocity_right
+float32 velocity_left
+float32 velocity_following
