@@ -192,6 +192,13 @@ def generate_launch_description():
         respawn=True,
         parameters=[{'ui.port': 9899}])
 
+    io_vision = Node(
+        package='raisa_io',
+        executable='io_vision',
+        name='io_vision',
+        respawn=True,
+        parameters=[{'camera.path': '/dev/v4l/by-id/usb-046d_Logitech_Webcam_C930e_8ADF7FCE-video-index0'}])
+
     obstacle_detector = Node(
         package='raisa_middleware',
         executable='obstacle_detector',
@@ -235,6 +242,7 @@ def generate_launch_description():
         io_lslidar_n301,
         io_stm32,
         io_ui,
+        io_vision,
         obstacle_detector,
         pose_estimator,
         transform_broadcaster,
