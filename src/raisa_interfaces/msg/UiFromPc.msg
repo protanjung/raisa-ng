@@ -1,2 +1,3 @@
 uint8 state_machine
 uint8 human_presence
+uint8 human_temperature

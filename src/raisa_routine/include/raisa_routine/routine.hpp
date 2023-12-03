@@ -143,15 +143,21 @@ class Routine : public rclcpp::Node {
   void cllbck_sub_obstacle_data(const raisa_interfaces::msg::ObstacleData::SharedPtr msg);
   void cllbck_sub_odometry_filtered(const nav_msgs::msg::Odometry::SharedPtr msg);
 
+  //====================================
+
+  void jalan_manual(float _dx, float _dy, float _dtheta);
+  void jalan_manual_lapangan(float _dx, float _dy, float _dtheta);
+
+  void obstacle_influence(float _dx, float _dy, float _dtheta, float &_dx_out, float &_dy_out, float &_dtheta_out);
+
+  //====================================
+
   void process_all();
   void process_marker();
   void process_storage();
   void process_mission();
 
-  void jalan_manual(float _dx, float _dy, float _dtheta);
-  void obstacle_influence(float _dx, float _dy, float _dtheta, float &_dx_out, float &_dy_out, float &_dtheta_out);
-
-  std::vector<geometry_msgs::msg::Point> route_to_path(const std::vector<route> &_list_route, float _res = 0.1);
+  geometry_msgs::msg::Point nearest_path(float _x, float _y, std::vector<geometry_msgs::msg::Point> _path);
   std::vector<geometry_msgs::msg::Point> generate_path(float _x0, float _y0, float _x1, float _y1, float _res = 0.1);
 
   bool slam_reset();
@@ -159,7 +165,6 @@ class Routine : public rclcpp::Node {
   bool slam_mapping_mode();
 
   geometry_msgs::msg::Quaternion rpy_to_quaternion(float _roll, float _pitch, float _yaw);
-
   void publish_initialpose(float _x, float _y, float _theta);
 };
 

@@ -29,6 +29,7 @@ class IOUI : public rclcpp::Node {
   // ============
   uint8_t state_machine;
   uint8_t human_presence;
+  uint8_t human_temperature;
 
   IOUI() : Node("io_ui") {
     //-----Parameter
@@ -62,6 +63,7 @@ class IOUI : public rclcpp::Node {
   void cllbck_sub_ui_from_pc(const raisa_interfaces::msg::UiFromPc::SharedPtr msg) {
     state_machine = msg->state_machine;
     human_presence = msg->human_presence;
+    human_temperature = msg->human_temperature;
   }
 
   //====================================
@@ -91,10 +93,12 @@ class IOUI : public rclcpp::Node {
       // Offset   | Size  | Description
       // 0        | 1     | state_machine
       // 1        | 1     | human_presence
+      // 2        | 1     | human_temperature
       memcpy(ui_tx_buffer + 0, &state_machine, 1);
       memcpy(ui_tx_buffer + 1, &human_presence, 1);
+      memcpy(ui_tx_buffer + 2, &human_temperature, 1);
 
-      len_data_from_pc = ui_udp.send(ui_tx_buffer, 2);
+      len_data_from_pc = ui_udp.send(ui_tx_buffer, 3);
     }
 
     // =================================

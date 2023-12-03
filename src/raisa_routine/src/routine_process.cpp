@@ -32,9 +32,9 @@ void Routine::process_marker() {
   // Route markers
   // =============
   ps.clear();
-  for (auto x : list_route) {
-    p.x = x.x;
-    p.y = x.y;
+  for (auto i : list_route) {
+    p.x = i.x;
+    p.y = i.y;
     ps.push_back(p);
   }
   _marker.sphere_list(
@@ -44,30 +44,30 @@ void Routine::process_marker() {
   // POI markers
   // ===========
   ps.clear();
-  for (auto x : list_poi) {
-    p.x = x.x;
-    p.y = x.y;
+  for (auto i : list_poi) {
+    p.x = i.x;
+    p.y = i.y;
     ps.push_back(p);
   }
   _marker.sphere_list(
       "map", "poi", 1, ps, rpy_to_quaternion(0, 0, 0), std::vector<float>{0, 0, 1, 0.5}, 0.3, 0.3, 0.05);
 
   ps.clear();
-  for (auto x : list_poi) {
-    p.x = x.gate_x;
-    p.y = x.gate_y;
+  for (auto i : list_poi) {
+    p.x = i.gate_x;
+    p.y = i.gate_y;
     ps.push_back(p);
   }
   _marker.sphere_list(
       "map", "poi", 2, ps, rpy_to_quaternion(0, 0, 0), std::vector<float>{0, 1, 0, 0.5}, 0.3, 0.3, 0.05);
 
   ps.clear();
-  for (auto x : list_poi) {
-    p.x = x.x;
-    p.y = x.y;
+  for (auto i : list_poi) {
+    p.x = i.x;
+    p.y = i.y;
     ps.push_back(p);
-    p.x = x.gate_x;
-    p.y = x.gate_y;
+    p.x = i.gate_x;
+    p.y = i.gate_y;
     ps.push_back(p);
   }
   _marker.line_list("map", "poi", 3, ps, std::vector<float>{0.5, 0.5, 0.5, 1}, 0.01);
@@ -179,25 +179,18 @@ void Routine::process_storage() {
     // MISC: Do something that is supposed to be done
     // ==============================================
     case 2: {
-      path_active = route_to_path(list_route);
+      path_active.clear();
+      for (size_t i = 1; i < list_route.size(); i++) {
+        auto path = generate_path(list_route[i - 1].x, list_route[i - 1].y, list_route[i].x, list_route[i].y);
+        path_active.insert(path_active.end(), path.begin(), path.end());
+      }
+      auto path = generate_path(list_route.back().x, list_route.back().y, list_route.front().x, list_route.front().y);
+      path_active.insert(path_active.end(), path.begin(), path.end());
 
       for (auto& i : list_poi) {
-        i.gate_x = __FLT_MAX__;
-        i.gate_y = __FLT_MAX__;
-        float r = __FLT_MAX__;
-
-        for (auto& j : path_active) {
-          float dx = i.x - j.x;
-          float dy = i.y - j.y;
-          float d = sqrt(dx * dx + dy * dy);
-
-          if (d < r) {
-            i.gate_x = j.x;
-            i.gate_y = j.y;
-            r = d;
-          }
-        }
-
+        geometry_msgs::msg::Point p = nearest_path(i.x, i.y, path_active);
+        i.gate_x = p.x;
+        i.gate_y = p.y;
         i.list_route_entry = generate_path(i.x, i.y, i.gate_x, i.gate_y);
         i.list_route_exit = generate_path(i.gate_x, i.gate_y, i.x, i.y);
       }
@@ -386,39 +379,18 @@ void Routine::process_mission() {
 // -----------------------------------------------------------------------------
 // =============================================================================
 
-std::vector<geometry_msgs::msg::Point> Routine::route_to_path(const std::vector<route>& _list_route, float _res) {
-  std::vector<geometry_msgs::msg::Point> _path;
-
-  if (_list_route.size() < 3) { return _path; }
-
+geometry_msgs::msg::Point Routine::nearest_path(float _x, float _y, std::vector<geometry_msgs::msg::Point> _path) {
   geometry_msgs::msg::Point p;
-  p.x = _list_route[0].x;
-  p.y = _list_route[0].y;
-  _path.push_back(p);
-
-  for (size_t i = 1; i < _list_route.size(); i++) {
-    float dx = _list_route[i].x - _list_route[i - 1].x;
-    float dy = _list_route[i].y - _list_route[i - 1].y;
-    float d = sqrt(dx * dx + dy * dy);
-    int n = d / _res;
-    for (int j = 1; j <= n; j++) {
-      p.x = _list_route[i - 1].x + dx * j / n;
-      p.y = _list_route[i - 1].y + dy * j / n;
-      _path.push_back(p);
+  float d_min = __FLT_MAX__;
+  for (auto i : _path) {
+    float d = sqrt(pow(i.x - _x, 2) + pow(i.y - _y, 2));
+    if (d < d_min) {
+      d_min = d;
+      p.x = i.x;
+      p.y = i.y;
     }
   }
-
-  float dx = _list_route[0].x - _list_route[_list_route.size() - 1].x;
-  float dy = _list_route[0].y - _list_route[_list_route.size() - 1].y;
-  float d = sqrt(dx * dx + dy * dy);
-  int n = d / _res;
-  for (int j = 1; j <= n; j++) {
-    p.x = _list_route[_list_route.size() - 1].x + dx * j / n;
-    p.y = _list_route[_list_route.size() - 1].y + dy * j / n;
-    _path.push_back(p);
-  }
-
-  return _path;
+  return p;
 }
 
 std::vector<geometry_msgs::msg::Point> Routine::generate_path(float _x0, float _y0, float _x1, float _y1, float _res) {
