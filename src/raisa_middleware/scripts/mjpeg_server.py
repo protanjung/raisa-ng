@@ -21,8 +21,15 @@ class MJPEGServer(Node):
         self.mjpeg_server_port = self.get_parameter('mjpeg_server.port').value
         # ----Timer
         self.tim_1hz = self.create_timer(1.0, self.cllbck_tim_1hz)
+        # ----Subscriber
+        self.subscriber_topics = []
+        self.subscriber_objects = {}
         # ----Mutex
         self.mtx_images = threading.Lock()
+
+        # Image processing
+        # ================
+        self.images = {}
 
         if self.mjpeg_server_init() == False:
             self.get_logger().error('MJPEG Server init failed')
@@ -47,10 +54,6 @@ class MJPEGServer(Node):
     def mjpeg_server_init(self):
         self.get_logger().info('Topics: ' + str(self.mjpeg_server_topics))
         self.get_logger().info('Port: ' + str(self.mjpeg_server_port))
-
-        self.subscriber_objects = {}
-        self.subscribed_topics = []
-        self.images = {}
 
         # ==============================
         # ------------------------------
@@ -84,15 +87,15 @@ class MJPEGServer(Node):
 
     def mjpeg_server_routine(self):
         for topic in self.mjpeg_server_topics:
-            if topic not in self.subscribed_topics:
+            if topic not in self.subscriber_topics:
                 self.register_subscriber(topic)
-                self.subscribed_topics.append(topic)
+                self.subscriber_topics.append(topic)
                 self.images[topic] = np.zeros((64, 64, 3), np.uint8)
 
-        for topic in self.subscribed_topics:
+        for topic in self.subscriber_topics:
             if topic not in self.mjpeg_server_topics:
                 self.unregister_subscriber(topic)
-                self.subscribed_topics.remove(topic)
+                self.subscriber_topics.remove(topic)
                 del self.images[topic]
 
         return True
@@ -115,6 +118,7 @@ class MJPEGServer(Node):
         self.flask_app.stop()
 
     def flask_display(self, topic, quality=50, scale=1.0):
+        self.get_logger().warn('Displaying topic: ' + topic)
         while True:
             self.mtx_images.acquire()
             image = self.images[topic]
@@ -125,8 +129,12 @@ class MJPEGServer(Node):
 
             _, jpeg = cv.imencode('.jpg', image, [int(cv.IMWRITE_JPEG_QUALITY), quality])
 
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
+            try:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
+            except GeneratorExit:
+                self.get_logger().warn('Stopping display of topic: ' + topic)
+                break
 
 
 def main(args=None):

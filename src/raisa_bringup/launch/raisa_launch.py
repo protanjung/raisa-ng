@@ -168,8 +168,8 @@ def generate_launch_description():
         parameters=[{'msop_port': 2368,
                      'difop_port': 2369,
                      'frame_id': 'lidar_link',
-                     'azimuth_start': 185.0,
-                     'azimuth_stop': 355.0,
+                     'azimuth_start': 190.0,
+                     'azimuth_stop': 350.0,
                      'azimuth_step': 1.0,
                      'distance_min': 0.2,
                      'distance_max': 20.0}],
@@ -203,14 +203,20 @@ def generate_launch_description():
         executable='io_vision',
         name='io_vision',
         respawn=True,
-        parameters=[{'camera.path': '/dev/v4l/by-id/usb-046d_Logitech_Webcam_C930e_8ADF7FCE-video-index0'}])
+        parameters=[{'camera.path': '/dev/v4l/by-id/usb-046d_C922_Pro_Stream_Webcam_FE92332F-video-index0'}])
+
+    face_detector = Node(
+        package='raisa_middleware',
+        executable='face_detector.py',
+        name='face_detector',
+        respawn=True)
 
     mjpeg_server = Node(
         package='raisa_middleware',
         executable='mjpeg_server.py',
         name='mjpeg_server',
         respawn=True,
-        parameters=[{'mjpeg_server.topics': ['/image_bgr', '/image_gray'],
+        parameters=[{'mjpeg_server.topics': ['/faces_display', '/image_bgr', '/image_gray'],
                      'mjpeg_server.port': 9999}])
 
     obstacle_detector = Node(
@@ -258,6 +264,7 @@ def generate_launch_description():
         io_thermal,
         io_ui,
         io_vision,
+        face_detector,
         mjpeg_server,
         obstacle_detector,
         pose_estimator,

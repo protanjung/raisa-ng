@@ -41,7 +41,8 @@ install(TARGETS obstacle_detector pose_estimator transform_broadcaster
 
 ament_python_install_package(${PROJECT_NAME})
 
-install(PROGRAMS scripts/mjpeg_server.py DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS scripts/face_detector.py scripts/mjpeg_server.py
+        DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY assets DESTINATION share/${PROJECT_NAME})
 
