@@ -117,7 +117,7 @@ void Routine::process_storage() {
       }
       if (!boost::filesystem::exists(poi_file)) {
         std::ofstream file(poi_file);
-        file << "x,y\n";
+        file << "x,y,theta,duration\n";
         file.close();
       }
 
@@ -179,20 +179,28 @@ void Routine::process_storage() {
     // MISC: Do something that is supposed to be done
     // ==============================================
     case 2: {
-      path_active.clear();
-      for (size_t i = 1; i < list_route.size(); i++) {
-        auto path = generate_path(list_route[i - 1].x, list_route[i - 1].y, list_route[i].x, list_route[i].y);
+      if (list_route.size() > 2) {
+        path_active.clear();
+        for (size_t i = 1; i < list_route.size(); i++) {
+          auto path = generate_path(list_route[i - 1].x, list_route[i - 1].y, list_route[i].x, list_route[i].y);
+          path_active.insert(path_active.end(), path.begin(), path.end());
+        }
+        auto path = generate_path(list_route.back().x, list_route.back().y, list_route.front().x, list_route.front().y);
         path_active.insert(path_active.end(), path.begin(), path.end());
       }
-      auto path = generate_path(list_route.back().x, list_route.back().y, list_route.front().x, list_route.front().y);
-      path_active.insert(path_active.end(), path.begin(), path.end());
 
       for (auto& i : list_poi) {
         geometry_msgs::msg::Point p = nearest_path(i.x, i.y, path_active);
         i.gate_x = p.x;
         i.gate_y = p.y;
-        i.list_route_entry = generate_path(i.x, i.y, i.gate_x, i.gate_y);
-        i.list_route_exit = generate_path(i.gate_x, i.gate_y, i.x, i.y);
+
+        i.list_route_entry = generate_path(i.x, i.y, i.gate_x, i.gate_y, 0.1);
+        RCLCPP_INFO(this->get_logger(), "Entry: (%f, %f) -> (%f, %f)", i.x, i.y, i.gate_x, i.gate_y);
+        for (auto j : i.list_route_entry) { RCLCPP_INFO(this->get_logger(), "  (%f, %f)", j.x, j.y); }
+
+        i.list_route_exit = generate_path(i.gate_x, i.gate_y, i.x, i.y, 0.1);
+        RCLCPP_INFO(this->get_logger(), "Exit: (%f, %f) -> (%f, %f)", i.gate_x, i.gate_y, i.x, i.y);
+        for (auto j : i.list_route_exit) { RCLCPP_INFO(this->get_logger(), "  (%f, %f)", j.x, j.y); }
       }
 
       algorithm_storage = -1;
@@ -211,6 +219,11 @@ void Routine::process_mission() {
   time_old = time_now;
   time_now = this->now();
   double dt = (time_now - time_old).seconds();
+
+  static bool is_first_run = true;
+  static bool is_come_back = false;
+  static uint8_t poi_index = 0;
+  static rclcpp::Time poi_time = this->now();
 
   // ===================================
 
@@ -233,6 +246,22 @@ void Routine::process_mission() {
   } else if (obstacle_parameter.laser_scan_distance > tgt_laser_scan_distance) {
     obstacle_parameter.laser_scan_distance =
         fmaxf(obstacle_parameter.laser_scan_distance - 1.0 * dt, tgt_laser_scan_distance);
+  }
+
+  // * Check whether robot is aligned to the goal or not
+  static bool is_aligned = false;
+  if (fabsf(error_sudut_robot_ke_titik(pp_active.goal_x, pp_active.goal_y)) < M_PI_4) {
+    is_aligned = true;
+  } else if (fabsf(error_sudut_robot_ke_titik(pp_active.goal_x, pp_active.goal_y)) > M_PI_2) {
+    is_aligned = false;
+  }
+
+  // * Check whether robot is obstructed or not
+  static bool is_obstructed = false;
+  if (obstacle_data.emergency > 0.75) {
+    is_obstructed = true;
+  } else if (obstacle_data.emergency < 0.25) {
+    is_obstructed = false;
   }
 
   // ===================================
@@ -264,8 +293,15 @@ void Routine::process_mission() {
         RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 2 (ROUTING MODE)");
       }
       if (BTN_11) {
-        algorithm_mission = 3;
-        RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 3 (OPERATION MODE)");
+        if (list_route.size() > 2) {
+          is_first_run = true;
+          algorithm_mission = 3;
+          RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 3 (OPERATION MODE)");
+        } else {
+          is_first_run = true;
+          algorithm_mission = 0;
+          RCLCPP_ERROR(this->get_logger(), "Minimum 3 route coordinates are required to start operation mode.");
+        }
       }
 
       break;
@@ -327,9 +363,9 @@ void Routine::process_mission() {
         x.y = fb_y;
         x.theta = fb_theta;
         if (list_poi.empty()) {
-          x.duration = 10;
+          x.duration = 600;
         } else {
-          x.duration = 5;
+          x.duration = 120;
         }
         list_poi.push_back(x);
         RCLCPP_WARN(this->get_logger(), "POI added. There are %ld POI coordinates now.", list_poi.size());
@@ -357,7 +393,36 @@ void Routine::process_mission() {
     // OPERATTION MODE: Robot operate autonomously to do the mission
     // =============================================================
     case 3: {
-      obstacle_influence(0.2, 0.0, pp_active.steering_angle, tgt_dx, tgt_dy, tgt_dtheta);
+      // * =============================
+      if (is_inside_gate(0.5) == -1 && is_come_back == true) { is_come_back = false; }
+      // * =============================
+
+      tgt_look_ahead_distance = 0.6;
+      obstacle_parameter.status_steering = true;
+      obstacle_parameter.status_velocity = true;
+      if (is_aligned) {
+        obstacle_influence(0.2, 0.0, pp_active.steering_angle, tgt_dx, tgt_dy, tgt_dtheta);
+      } else {
+        tgt_dx = 0;
+        tgt_dy = 0;
+        tgt_dtheta = pp_active.steering_angle;
+      }
+
+      // ===============================
+
+      int selected_gate = is_inside_gate();
+      if (selected_gate != -1 && is_come_back == false) {
+        if (is_first_run) {
+          is_first_run = false;
+          is_come_back = true;
+          RCLCPP_WARN(this->get_logger(), "State 3 -> State 3 (Going to next POI)");
+        } else {
+          poi_index = selected_gate;
+          pp_active.set_path(&list_poi[poi_index].list_route_exit);
+          algorithm_mission = 4;
+          RCLCPP_WARN(this->get_logger(), "State 3 -> State 4 (Going to POI)");
+        }
+      }
 
       // -------------------------------
 
@@ -368,11 +433,175 @@ void Routine::process_mission() {
 
       break;
     }
+
+    case 4: {
+      tgt_look_ahead_distance = 0.4;
+      obstacle_parameter.status_steering = false;
+      obstacle_parameter.status_velocity = true;
+      if (is_aligned) {
+        obstacle_influence(0.2, 0.0, pp_active.steering_angle, tgt_dx, tgt_dy, tgt_dtheta);
+      } else {
+        tgt_dx = 0;
+        tgt_dy = 0;
+        tgt_dtheta = pp_active.steering_angle;
+      }
+
+      // ===============================
+
+      int selected_gate = is_inside_poi();
+      if (selected_gate >= 0) {
+        poi_index = selected_gate;
+        pp_active.set_path(&list_poi[poi_index].list_route_entry);
+        algorithm_mission = 5;
+        RCLCPP_WARN(this->get_logger(), "State 4 -> State 5 (Parking)");
+      }
+
+      // -------------------------------
+
+      if (BTN_7) {
+        algorithm_mission = 0;
+        RCLCPP_WARN(this->get_logger(), "State 4 (OPERATION MODE) -> 0 (IDDLE)");
+      }
+
+      break;
+    }
+
+    case 5: {
+      float temp_dx, temp_dy, temp_dtheta;
+
+      if (jalan_posisi_sudut(
+              list_poi[poi_index].x,
+              list_poi[poi_index].y,
+              list_poi[poi_index].theta,
+              temp_dx,
+              temp_dy,
+              temp_dtheta,
+              0.2,
+              M_PI_4)) {
+        poi_time = this->now();
+        algorithm_mission = 6;
+        RCLCPP_WARN(this->get_logger(), "State 5 -> State 6 (Waiting)");
+      }
+
+      tgt_dx = temp_dx * cosf(fb_theta) + temp_dy * sinf(fb_theta);
+      tgt_dy = temp_dx * -sinf(fb_theta) + temp_dy * cosf(fb_theta);
+      tgt_dtheta = temp_dtheta;
+
+      // -------------------------------
+
+      if (BTN_7) {
+        algorithm_mission = 0;
+        RCLCPP_WARN(this->get_logger(), "State 5 (OPERATION MODE) -> 0 (IDDLE)");
+      }
+
+      break;
+    }
+
+    case 6: {
+      tgt_dx = tgt_dy = tgt_dtheta = 0;
+      if (this->now() - poi_time > std::chrono::seconds((int)list_poi[poi_index].duration)) {
+        poi_time = this->now();
+        algorithm_mission = 7;
+        RCLCPP_WARN(this->get_logger(), "State 6 -> State 7 (Going back)");
+      }
+
+      // -------------------------------
+
+      if (BTN_7) {
+        algorithm_mission = 0;
+        RCLCPP_WARN(this->get_logger(), "State 6 (OPERATION MODE) -> 0 (IDDLE)");
+      }
+
+      break;
+    }
+
+    case 7: {
+      // * =============================
+      is_come_back = true;
+      // * =============================
+
+      tgt_look_ahead_distance = 0.4;
+      obstacle_parameter.status_steering = false;
+      obstacle_parameter.status_velocity = true;
+      if (is_aligned) {
+        obstacle_influence(0.2, 0.0, pp_active.steering_angle, tgt_dx, tgt_dy, tgt_dtheta);
+      } else {
+        tgt_dx = 0;
+        tgt_dy = 0;
+        tgt_dtheta = pp_active.steering_angle;
+      }
+
+      // ===============================
+
+      int selected_gate = is_inside_gate();
+      if (selected_gate >= 0) {
+        pp_active.set_path(&path_active);
+        algorithm_mission = 3;
+        RCLCPP_WARN(this->get_logger(), "State 7 -> State 3 (Going to next POI)");
+      }
+
+      // -------------------------------
+
+      if (BTN_7) {
+        algorithm_mission = 0;
+        RCLCPP_WARN(this->get_logger(), "State 7 (OPERATION MODE) -> 0 (IDDLE)");
+      }
+
+      break;
+    }
   }
 
   // ===================================
 
+  // * UI data feedback
+  if (is_obstructed == true) {
+    ui_from_pc.state_machine = 0;
+  } else if (algorithm_mission == 3 || algorithm_mission == 4 || algorithm_mission == 5 || algorithm_mission == 7) {
+    ui_from_pc.state_machine = 0;
+  } else if (algorithm_mission == 0 || algorithm_mission == 0) {
+    ui_from_pc.state_machine = 2;
+  }
+  ui_from_pc.human_presence = is_obstructed;
+  ui_from_pc.human_temperature = human_temperature;
+  pub_ui_from_pc->publish(ui_from_pc);
+
   jalan_manual(tgt_dx, tgt_dy, tgt_dtheta);
+}
+
+// =============================================================================
+
+int Routine::is_inside_poi(float _radius_offset) {
+  int result = -1;
+
+  for (size_t i = 0; i < list_poi.size(); i++) {
+    float dx = list_poi[i].x - fb_x;
+    float dy = list_poi[i].y - fb_y;
+    float r = sqrtf(dx * dx + dy * dy);
+
+    if (r < 0.5 + _radius_offset) {
+      result = i;
+      break;
+    }
+  }
+
+  return result;
+}
+
+int Routine::is_inside_gate(float _radius_offset) {
+  int result = -1;
+
+  for (size_t i = 0; i < list_poi.size(); i++) {
+    float dx = list_poi[i].gate_x - fb_x;
+    float dy = list_poi[i].gate_y - fb_y;
+    float r = sqrtf(dx * dx + dy * dy);
+
+    if (r < 0.5 + _radius_offset) {
+      result = i;
+      break;
+    }
+  }
+
+  return result;
 }
 
 // =============================================================================

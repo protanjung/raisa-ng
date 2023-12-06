@@ -5,6 +5,7 @@
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "pandu_ros2_kit/help_marker.hpp"
+#include "pandu_ros2_kit/pid.hpp"
 #include "pandu_ros2_kit/pure_pursuit.hpp"
 #include "raisa_interfaces/msg/basestation_from_pc.hpp"
 #include "raisa_interfaces/msg/basestation_to_pc.hpp"
@@ -15,6 +16,7 @@
 #include "raisa_interfaces/msg/ui_from_pc.hpp"
 #include "raisa_interfaces/msg/ui_to_pc.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/float32.hpp"
 #include "std_srvs/srv/empty.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
@@ -59,6 +61,7 @@ class Routine : public rclcpp::Node {
   rclcpp::Subscription<raisa_interfaces::msg::UiToPc>::SharedPtr sub_ui_to_pc;
   rclcpp::Subscription<raisa_interfaces::msg::ObstacleData>::SharedPtr sub_obstacle_data;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odometry_filtered;
+  rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_thermal;
   //-----Publisher
   rclcpp::Publisher<raisa_interfaces::msg::Stm32FromPc>::SharedPtr pub_stm32_from_pc;
   rclcpp::Publisher<raisa_interfaces::msg::BasestationFromPc>::SharedPtr pub_basestation_from_pc;
@@ -107,6 +110,7 @@ class Routine : public rclcpp::Node {
   // Vision
   // ======
   uint8_t human_presence = 0;
+  float human_temperature = 0;
 
   // Route and POI
   // =============
@@ -142,13 +146,28 @@ class Routine : public rclcpp::Node {
   void cllbck_sub_ui_to_pc(const raisa_interfaces::msg::UiToPc::SharedPtr msg);
   void cllbck_sub_obstacle_data(const raisa_interfaces::msg::ObstacleData::SharedPtr msg);
   void cllbck_sub_odometry_filtered(const nav_msgs::msg::Odometry::SharedPtr msg);
+  void cllbck_sub_thermal(const std_msgs::msg::Float32::SharedPtr msg);
 
   //====================================
 
   void jalan_manual(float _dx, float _dy, float _dtheta);
   void jalan_manual_lapangan(float _dx, float _dy, float _dtheta);
 
-  void obstacle_influence(float _dx, float _dy, float _dtheta, float &_dx_out, float &_dy_out, float &_dtheta_out);
+  bool jalan_posisi_sudut(
+      float _target_x,
+      float _target_y,
+      float _target_sudut,
+      float& _output_dx,
+      float& _output_dy,
+      float& _output_dtheta,
+      float _vposisi,
+      float _vsudut);
+
+  float sudut_robot_ke_titik(float _x, float _y);
+  float sudut_titik_ke_titik(float _x0, float _y0, float _x1, float _y1);
+  float error_sudut_robot_ke_titik(float _x, float _y);
+
+  void obstacle_influence(float _dx, float _dy, float _dtheta, float& _dx_out, float& _dy_out, float& _dtheta_out);
 
   //====================================
 
@@ -156,6 +175,9 @@ class Routine : public rclcpp::Node {
   void process_marker();
   void process_storage();
   void process_mission();
+
+  int is_inside_poi(float _radius_offset = 0);
+  int is_inside_gate(float _radius_offset = 0);
 
   geometry_msgs::msg::Point nearest_path(float _x, float _y, std::vector<geometry_msgs::msg::Point> _path);
   std::vector<geometry_msgs::msg::Point> generate_path(float _x0, float _y0, float _x1, float _y1, float _res = 0.1);
@@ -168,4 +190,4 @@ class Routine : public rclcpp::Node {
   void publish_initialpose(float _x, float _y, float _theta);
 };
 
-#endif
+#endif  // ROUTINE_HPP_

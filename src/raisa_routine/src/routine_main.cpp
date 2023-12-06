@@ -36,6 +36,8 @@ Routine::Routine() : Node("routine") {
       "obstacle/data", 10, std::bind(&Routine::cllbck_sub_obstacle_data, this, std::placeholders::_1));
   sub_odometry_filtered = this->create_subscription<nav_msgs::msg::Odometry>(
       "odometry/filtered", 10, std::bind(&Routine::cllbck_sub_odometry_filtered, this, std::placeholders::_1));
+  sub_thermal = this->create_subscription<std_msgs::msg::Float32>(
+      "thermal", 10, std::bind(&Routine::cllbck_sub_thermal, this, std::placeholders::_1));
   //-----Publisher
   pub_stm32_from_pc = this->create_publisher<raisa_interfaces::msg::Stm32FromPc>("stm32/from_pc", 10);
   pub_basestation_from_pc = this->create_publisher<raisa_interfaces::msg::BasestationFromPc>("basestation/from_pc", 10);
@@ -98,9 +100,7 @@ void Routine::cllbck_tim_50hz() {
   basestation_from_pc.battery_charging = stm32_to_pc.battery_charging;
   pub_basestation_from_pc->publish(basestation_from_pc);
 
-  ui_from_pc.state_machine = algorithm_mission;
-  ui_from_pc.human_presence = human_presence;
-  pub_ui_from_pc->publish(ui_from_pc);
+
 
   pub_obstacle_parameter->publish(obstacle_parameter);
 }
@@ -150,6 +150,11 @@ void Routine::cllbck_sub_odometry_filtered(const nav_msgs::msg::Odometry::Shared
   fb_dx = msg->twist.twist.linear.x;
   fb_dy = msg->twist.twist.linear.y;
   fb_dtheta = msg->twist.twist.angular.z;
+}
+
+void Routine::cllbck_sub_thermal(const std_msgs::msg::Float32::SharedPtr msg) {
+  // Copy message
+  human_temperature = msg->data;
 }
 
 int main(int argc, char** argv) {
