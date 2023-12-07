@@ -195,11 +195,9 @@ void Routine::process_storage() {
         i.gate_y = p.y;
 
         i.list_route_entry = generate_path(i.x, i.y, i.gate_x, i.gate_y, 0.1);
-        RCLCPP_INFO(this->get_logger(), "Entry: (%f, %f) -> (%f, %f)", i.x, i.y, i.gate_x, i.gate_y);
         for (auto j : i.list_route_entry) { RCLCPP_INFO(this->get_logger(), "  (%f, %f)", j.x, j.y); }
 
         i.list_route_exit = generate_path(i.gate_x, i.gate_y, i.x, i.y, 0.1);
-        RCLCPP_INFO(this->get_logger(), "Exit: (%f, %f) -> (%f, %f)", i.gate_x, i.gate_y, i.x, i.y);
         for (auto j : i.list_route_exit) { RCLCPP_INFO(this->get_logger(), "  (%f, %f)", j.x, j.y); }
       }
 
@@ -222,16 +220,16 @@ void Routine::process_mission() {
 
   static bool is_first_run = true;
   static bool is_come_back = false;
-  static uint8_t poi_index = 0;
-  static rclcpp::Time poi_time = this->now();
+  static uint8_t mission_index = 0;
+  static rclcpp::Time mission_time = this->now();
 
   // ===================================
 
   // * Robot velocity target
-  float tgt_dx = 0, tgt_dy = 0, tgt_dtheta = 0;
+  static float tgt_dx = 0, tgt_dy = 0, tgt_dtheta = 0;
 
   // * Pure pursuit's look ahead distance target
-  float tgt_look_ahead_distance = 0.5;
+  static float tgt_look_ahead_distance = 0.5;
   if (pp_active.look_ahead_distance < tgt_look_ahead_distance) {
     pp_active.look_ahead_distance = fminf(pp_active.look_ahead_distance + 1.0 * dt, tgt_look_ahead_distance);
   } else if (pp_active.look_ahead_distance > tgt_look_ahead_distance) {
@@ -239,7 +237,7 @@ void Routine::process_mission() {
   }
 
   // * Obstacle detector's laser scan distance target
-  float tgt_laser_scan_distance = 1.2;
+  static float tgt_laser_scan_distance = 1.2;
   if (obstacle_parameter.laser_scan_distance < tgt_laser_scan_distance) {
     obstacle_parameter.laser_scan_distance =
         fminf(obstacle_parameter.laser_scan_distance + 1.0 * dt, tgt_laser_scan_distance);
@@ -275,32 +273,32 @@ void Routine::process_mission() {
       tgt_dy = cmd_dy_in * 0.2;
       tgt_dtheta = cmd_dtheta_in * 1.0;
 
-      if (BTN_8) {
+      if (BDN_8 || BDN_SELECT) {
         publish_initialpose(0, 0, 0);
         RCLCPP_WARN(this->get_logger(), "Robot restarted at origin (0, 0, 0). Be aware of wrong position.");
       }
 
       // -------------------------------
 
-      if (BTN_7) {
+      if (BDN_7) {
         if (slam_mapping_mode() == false) { break; }
         algorithm_mission = 1;
         RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 1 (MAPPING MODE)");
       }
-      if (BTN_9) {
+      if (BDN_9) {
         algorithm_storage = 0;
         algorithm_mission = 2;
         RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 2 (ROUTING MODE)");
       }
-      if (BTN_11) {
-        if (list_route.size() > 2) {
+      if (BDN_11 || BDN_START) {
+        if (list_route.size() < 2) {
+          RCLCPP_ERROR(this->get_logger(), "Not enough route coordinates. Cannot start operation mode.");
+        } else if (stm32_to_pc.battery_soc < 5 || stm32_to_pc.battery_charging) {
+          RCLCPP_ERROR(this->get_logger(), "Battery is being charged or low. Cannot start operation mode.");
+        } else {
           is_first_run = true;
           algorithm_mission = 3;
           RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 3 (OPERATION MODE)");
-        } else {
-          is_first_run = true;
-          algorithm_mission = 0;
-          RCLCPP_ERROR(this->get_logger(), "Minimum 3 route coordinates are required to start operation mode.");
         }
       }
 
@@ -314,14 +312,14 @@ void Routine::process_mission() {
       tgt_dy = cmd_dy_in * 0.2;
       tgt_dtheta = cmd_dtheta_in * 1.0;
 
-      if (BTN_8) {
+      if (BDN_8) {
         if (slam_reset() == false) { break; }
         RCLCPP_WARN(this->get_logger(), "Mapping restarted at origin (0, 0, 0). You can start mapping now.");
       }
 
       // -------------------------------
 
-      if (BTN_7) {
+      if (BDN_7) {
         if (slam_localization_mode() == false) { break; }
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 1 (MAPPING MODE) -> 0 (IDDLE)");
@@ -337,19 +335,19 @@ void Routine::process_mission() {
       tgt_dy = cmd_dy_in * 0.2;
       tgt_dtheta = cmd_dtheta_in * 1.0;
 
-      if (BTN_8) {
+      if (BDN_8) {
         list_route.clear();
         list_poi.clear();
         RCLCPP_WARN(this->get_logger(), "Route and POI list cleared. Please create new route and POI.");
       }
-      if (BTN_9) {
+      if (BDN_9) {
         route x;
         x.x = fb_x;
         x.y = fb_y;
         list_route.push_back(x);
         RCLCPP_WARN(this->get_logger(), "Route added. There are %ld route coordinates now.", list_route.size());
       }
-      if (BTN_10) {
+      if (BDN_10) {
         if (list_route.size() > 0) {
           list_route.pop_back();
           RCLCPP_WARN(this->get_logger(), "Route removed. There are %ld route coordinates now.", list_route.size());
@@ -357,7 +355,7 @@ void Routine::process_mission() {
           RCLCPP_WARN(this->get_logger(), "Route list is empty. Cannot remove route coordinate.");
         }
       }
-      if (BTN_11) {
+      if (BDN_11) {
         poi x;
         x.x = fb_x;
         x.y = fb_y;
@@ -370,7 +368,7 @@ void Routine::process_mission() {
         list_poi.push_back(x);
         RCLCPP_WARN(this->get_logger(), "POI added. There are %ld POI coordinates now.", list_poi.size());
       }
-      if (BTN_12) {
+      if (BDN_12) {
         if (list_poi.size() > 0) {
           list_poi.pop_back();
           RCLCPP_WARN(this->get_logger(), "POI removed. There are %ld POI coordinates now.", list_poi.size());
@@ -381,7 +379,7 @@ void Routine::process_mission() {
 
       // -------------------------------
 
-      if (BTN_7) {
+      if (BDN_7) {
         algorithm_storage = 1;
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 2 (ROUTING MODE) -> 0 (IDDLE)");
@@ -398,6 +396,7 @@ void Routine::process_mission() {
       // * =============================
 
       tgt_look_ahead_distance = 0.6;
+      tgt_laser_scan_distance = 1.2;
       obstacle_parameter.status_steering = true;
       obstacle_parameter.status_velocity = true;
       if (is_aligned) {
@@ -410,6 +409,14 @@ void Routine::process_mission() {
 
       // ===============================
 
+      if (is_obstructed && human_presence) {
+        mission_time = this->now();
+        algorithm_mission = 8;
+        RCLCPP_WARN(this->get_logger(), "State 3 -> State 8 (Human interaction)");
+      }
+
+      // ===============================
+
       int selected_gate = is_inside_gate();
       if (selected_gate != -1 && is_come_back == false) {
         if (is_first_run) {
@@ -417,8 +424,8 @@ void Routine::process_mission() {
           is_come_back = true;
           RCLCPP_WARN(this->get_logger(), "State 3 -> State 3 (Going to next POI)");
         } else {
-          poi_index = selected_gate;
-          pp_active.set_path(&list_poi[poi_index].list_route_exit);
+          mission_index = selected_gate;
+          pp_active.set_path(&list_poi[mission_index].list_route_exit);
           algorithm_mission = 4;
           RCLCPP_WARN(this->get_logger(), "State 3 -> State 4 (Going to POI)");
         }
@@ -426,7 +433,7 @@ void Routine::process_mission() {
 
       // -------------------------------
 
-      if (BTN_7) {
+      if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 3 (OPERATION MODE) -> 0 (IDDLE)");
       }
@@ -436,6 +443,7 @@ void Routine::process_mission() {
 
     case 4: {
       tgt_look_ahead_distance = 0.4;
+      tgt_laser_scan_distance = 0.8;
       obstacle_parameter.status_steering = false;
       obstacle_parameter.status_velocity = true;
       if (is_aligned) {
@@ -450,15 +458,15 @@ void Routine::process_mission() {
 
       int selected_gate = is_inside_poi();
       if (selected_gate >= 0) {
-        poi_index = selected_gate;
-        pp_active.set_path(&list_poi[poi_index].list_route_entry);
+        mission_index = selected_gate;
+        pp_active.set_path(&list_poi[mission_index].list_route_entry);
         algorithm_mission = 5;
         RCLCPP_WARN(this->get_logger(), "State 4 -> State 5 (Parking)");
       }
 
       // -------------------------------
 
-      if (BTN_7) {
+      if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 4 (OPERATION MODE) -> 0 (IDDLE)");
       }
@@ -470,15 +478,15 @@ void Routine::process_mission() {
       float temp_dx, temp_dy, temp_dtheta;
 
       if (jalan_posisi_sudut(
-              list_poi[poi_index].x,
-              list_poi[poi_index].y,
-              list_poi[poi_index].theta,
+              list_poi[mission_index].x,
+              list_poi[mission_index].y,
+              list_poi[mission_index].theta,
               temp_dx,
               temp_dy,
               temp_dtheta,
               0.2,
-              M_PI_4)) {
-        poi_time = this->now();
+              0.3)) {
+        mission_time = this->now();
         algorithm_mission = 6;
         RCLCPP_WARN(this->get_logger(), "State 5 -> State 6 (Waiting)");
       }
@@ -489,7 +497,7 @@ void Routine::process_mission() {
 
       // -------------------------------
 
-      if (BTN_7) {
+      if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 5 (OPERATION MODE) -> 0 (IDDLE)");
       }
@@ -499,15 +507,15 @@ void Routine::process_mission() {
 
     case 6: {
       tgt_dx = tgt_dy = tgt_dtheta = 0;
-      if (this->now() - poi_time > std::chrono::seconds((int)list_poi[poi_index].duration)) {
-        poi_time = this->now();
+      if (this->now() - mission_time > std::chrono::seconds((int)list_poi[mission_index].duration)) {
+        mission_time = this->now();
         algorithm_mission = 7;
         RCLCPP_WARN(this->get_logger(), "State 6 -> State 7 (Going back)");
       }
 
       // -------------------------------
 
-      if (BTN_7) {
+      if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 6 (OPERATION MODE) -> 0 (IDDLE)");
       }
@@ -521,6 +529,7 @@ void Routine::process_mission() {
       // * =============================
 
       tgt_look_ahead_distance = 0.4;
+      tgt_laser_scan_distance = 0.8;
       obstacle_parameter.status_steering = false;
       obstacle_parameter.status_velocity = true;
       if (is_aligned) {
@@ -535,6 +544,7 @@ void Routine::process_mission() {
 
       int selected_gate = is_inside_gate();
       if (selected_gate >= 0) {
+        mission_index = selected_gate;
         pp_active.set_path(&path_active);
         algorithm_mission = 3;
         RCLCPP_WARN(this->get_logger(), "State 7 -> State 3 (Going to next POI)");
@@ -542,9 +552,42 @@ void Routine::process_mission() {
 
       // -------------------------------
 
-      if (BTN_7) {
+      if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 7 (OPERATION MODE) -> 0 (IDDLE)");
+      }
+
+      break;
+    }
+
+    case 8: {
+      tgt_dx = tgt_dy = tgt_dtheta = 0;
+
+      if (human_position < -0.1) {
+        tgt_dtheta = 0.3;
+      } else if (human_position > 0.1) {
+        tgt_dtheta = -0.3;
+      }
+
+      float error_theta = error_sudut_robot_ke_titik(pp_active.goal_x, pp_active.goal_y);
+      if ((error_theta > M_PI_2 && human_position > 0.1) || (error_theta < -M_PI_2 && human_position < -0.1)) {
+        tgt_dtheta = 0;
+      }
+
+      // ===============================
+
+      if (human_presence) {
+        mission_time = this->now();
+      } else if (this->now() - mission_time > 5s) {
+        algorithm_mission = 3;
+        RCLCPP_WARN(this->get_logger(), "State 8 -> State 3 (Going to next POI)");
+      }
+
+      // -------------------------------
+
+      if (BDN_7 || BDN_START) {
+        algorithm_mission = 0;
+        RCLCPP_WARN(this->get_logger(), "State 8 (OPERATION MODE) -> 0 (IDDLE)");
       }
 
       break;
@@ -552,18 +595,6 @@ void Routine::process_mission() {
   }
 
   // ===================================
-
-  // * UI data feedback
-  if (is_obstructed == true) {
-    ui_from_pc.state_machine = 0;
-  } else if (algorithm_mission == 3 || algorithm_mission == 4 || algorithm_mission == 5 || algorithm_mission == 7) {
-    ui_from_pc.state_machine = 0;
-  } else if (algorithm_mission == 0 || algorithm_mission == 0) {
-    ui_from_pc.state_machine = 2;
-  }
-  ui_from_pc.human_presence = is_obstructed;
-  ui_from_pc.human_temperature = human_temperature;
-  pub_ui_from_pc->publish(ui_from_pc);
 
   jalan_manual(tgt_dx, tgt_dy, tgt_dtheta);
 }

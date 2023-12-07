@@ -49,7 +49,7 @@ class FaceDetector(Node):
             base_options=self.BaseOptions(model_asset_path=model_path),
             running_mode=self.VisionRunningMode.LIVE_STREAM,
             result_callback=self.mediapipe_print_result,
-            min_detection_confidence=0.375,
+            min_detection_confidence=0.5,
             min_suppression_threshold=0.3
         )
 
@@ -103,7 +103,10 @@ class FaceDetector(Node):
 
         # Display faces
         for face in self.faces.faces:
-            cv.rectangle(self.face_display, (face.origin_x, face.origin_y), (face.origin_x + face.width, face.origin_y + face.height), (0, 255, 0), 2)
+            cv.rectangle(self.face_display,
+                         (int(face.origin_x * 640), int(face.origin_y * 360)),
+                         (int((face.origin_x + face.width) * 640), int((face.origin_y + face.height) * 360)),
+                         (0, 255, 0), 2)
         msg_face_display = CvBridge().cv2_to_imgmsg(self.face_display, 'bgr8')
         self.pub_faces_display.publish(msg_face_display)
 
@@ -115,10 +118,10 @@ class FaceDetector(Node):
         msg_faces = Faces()
         for detection in result.detections:
             face = Face()
-            face.origin_x = detection.bounding_box.origin_x
-            face.origin_y = detection.bounding_box.origin_y
-            face.width = detection.bounding_box.width
-            face.height = detection.bounding_box.height
+            face.origin_x = detection.bounding_box.origin_x / 640
+            face.origin_y = detection.bounding_box.origin_y / 360
+            face.width = detection.bounding_box.width / 640
+            face.height = detection.bounding_box.height / 360
             msg_faces.faces.append(face)
         self.pub_faces.publish(msg_faces)
 

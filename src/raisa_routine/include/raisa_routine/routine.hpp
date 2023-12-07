@@ -9,6 +9,7 @@
 #include "pandu_ros2_kit/pure_pursuit.hpp"
 #include "raisa_interfaces/msg/basestation_from_pc.hpp"
 #include "raisa_interfaces/msg/basestation_to_pc.hpp"
+#include "raisa_interfaces/msg/faces.hpp"
 #include "raisa_interfaces/msg/obstacle_data.hpp"
 #include "raisa_interfaces/msg/obstacle_parameter.hpp"
 #include "raisa_interfaces/msg/stm32_from_pc.hpp"
@@ -20,24 +21,42 @@
 #include "std_srvs/srv/empty.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
-#define BTN_TRIGGER (button_now[0] && !button_old[0])
-#define BTN_THUMB (button_now[1] && !button_old[1])
-#define BTN_3 (button_now[2] && !button_old[2])
-#define BTN_4 (button_now[3] && !button_old[3])
-#define BTN_5 (button_now[4] && !button_old[4])
-#define BTN_6 (button_now[5] && !button_old[5])
-#define BTN_7 (button_now[6] && !button_old[6])
-#define BTN_8 (button_now[7] && !button_old[7])
-#define BTN_9 (button_now[8] && !button_old[8])
-#define BTN_10 (button_now[9] && !button_old[9])
-#define BTN_11 (button_now[10] && !button_old[10])
-#define BTN_12 (button_now[11] && !button_old[11])
-#define BTN_UP (button_now[12] && !button_old[12])
-#define BTN_DOWN (button_now[13] && !button_old[13])
-#define BTN_LEFT (button_now[14] && !button_old[14])
-#define BTN_RIGHT (button_now[15] && !button_old[15])
-#define BTN_START (button_now[16] && !button_old[16])
-#define BTN_SELECT (button_now[17] && !button_old[17])
+#define BDN_TRIGGER (button_now[0] && !button_old[0])
+#define BDN_THUMB (button_now[1] && !button_old[1])
+#define BDN_3 (button_now[2] && !button_old[2])
+#define BDN_4 (button_now[3] && !button_old[3])
+#define BDN_5 (button_now[4] && !button_old[4])
+#define BDN_6 (button_now[5] && !button_old[5])
+#define BDN_7 (button_now[6] && !button_old[6])
+#define BDN_8 (button_now[7] && !button_old[7])
+#define BDN_9 (button_now[8] && !button_old[8])
+#define BDN_10 (button_now[9] && !button_old[9])
+#define BDN_11 (button_now[10] && !button_old[10])
+#define BDN_12 (button_now[11] && !button_old[11])
+#define BDN_UP (button_now[12] && !button_old[12])
+#define BDN_DOWN (button_now[13] && !button_old[13])
+#define BDN_LEFT (button_now[14] && !button_old[14])
+#define BDN_RIGHT (button_now[15] && !button_old[15])
+#define BDN_START (button_now[16] && !button_old[16])
+#define BDN_SELECT (button_now[17] && !button_old[17])
+#define BUP_TRIGGER (!button_now[0] && button_old[0])
+#define BUP_THUMB (!button_now[1] && button_old[1])
+#define BUP_3 (!button_now[2] && button_old[2])
+#define BUP_4 (!button_now[3] && button_old[3])
+#define BUP_5 (!button_now[4] && button_old[4])
+#define BUP_6 (!button_now[5] && button_old[5])
+#define BUP_7 (!button_now[6] && button_old[6])
+#define BUP_8 (!button_now[7] && button_old[7])
+#define BUP_9 (!button_now[8] && button_old[8])
+#define BUP_10 (!button_now[9] && button_old[9])
+#define BUP_11 (!button_now[10] && button_old[10])
+#define BUP_12 (!button_now[11] && button_old[11])
+#define BUP_UP (!button_now[12] && button_old[12])
+#define BUP_DOWN (!button_now[13] && button_old[13])
+#define BUP_LEFT (!button_now[14] && button_old[14])
+#define BUP_RIGHT (!button_now[15] && button_old[15])
+#define BUP_START (!button_now[16] && button_old[16])
+#define BUP_SELECT (!button_now[17] && button_old[17])
 
 #define MAP(x, in_min, in_max, out_min, out_max) ((x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
 
@@ -60,6 +79,7 @@ class Routine : public rclcpp::Node {
   rclcpp::Subscription<raisa_interfaces::msg::BasestationToPc>::SharedPtr sub_basestation_to_pc;
   rclcpp::Subscription<raisa_interfaces::msg::UiToPc>::SharedPtr sub_ui_to_pc;
   rclcpp::Subscription<raisa_interfaces::msg::ObstacleData>::SharedPtr sub_obstacle_data;
+  rclcpp::Subscription<raisa_interfaces::msg::Faces>::SharedPtr sub_faces;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odometry_filtered;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_thermal;
   //-----Publisher
@@ -104,12 +124,13 @@ class Routine : public rclcpp::Node {
 
   // Button
   // ======
-  bool button_now[18] = {0};
-  bool button_old[18] = {0};
+  bool button_now[18] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1};
+  bool button_old[18] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1};
 
   // Vision
   // ======
   uint8_t human_presence = 0;
+  float human_position = 0;
   float human_temperature = 0;
 
   // Route and POI
@@ -145,6 +166,7 @@ class Routine : public rclcpp::Node {
   void cllbck_sub_basestaion_to_pc(const raisa_interfaces::msg::BasestationToPc::SharedPtr msg);
   void cllbck_sub_ui_to_pc(const raisa_interfaces::msg::UiToPc::SharedPtr msg);
   void cllbck_sub_obstacle_data(const raisa_interfaces::msg::ObstacleData::SharedPtr msg);
+  void cllbck_sub_faces(const raisa_interfaces::msg::Faces::SharedPtr msg);
   void cllbck_sub_odometry_filtered(const nav_msgs::msg::Odometry::SharedPtr msg);
   void cllbck_sub_thermal(const std_msgs::msg::Float32::SharedPtr msg);
 

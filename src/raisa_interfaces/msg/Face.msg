@@ -1,4 +1,4 @@
-uint16 origin_x
-uint16 origin_y
-uint16 width
-uint16 height
+float32 origin_x
+float32 origin_y
+float32 width
+float32 height

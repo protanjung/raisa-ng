@@ -6,6 +6,7 @@ cd "$(dirname "$0")"
 
 ./cmd_build.bash
 
+source /opt/ros/humble/setup.bash
 source install/local_setup.bash
 
-ros2 launch raisa_bringup raisa_launch.py
+ros2 launch raisa_bringup raisa.launch.py

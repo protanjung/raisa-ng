@@ -34,6 +34,8 @@ Routine::Routine() : Node("routine") {
       "ui/to_pc", 10, std::bind(&Routine::cllbck_sub_ui_to_pc, this, std::placeholders::_1));
   sub_obstacle_data = this->create_subscription<raisa_interfaces::msg::ObstacleData>(
       "obstacle/data", 10, std::bind(&Routine::cllbck_sub_obstacle_data, this, std::placeholders::_1));
+  sub_faces = this->create_subscription<raisa_interfaces::msg::Faces>(
+      "faces", 10, std::bind(&Routine::cllbck_sub_faces, this, std::placeholders::_1));
   sub_odometry_filtered = this->create_subscription<nav_msgs::msg::Odometry>(
       "odometry/filtered", 10, std::bind(&Routine::cllbck_sub_odometry_filtered, this, std::placeholders::_1));
   sub_thermal = this->create_subscription<std_msgs::msg::Float32>(
@@ -77,7 +79,18 @@ void Routine::cllbck_tim_10hz() {
   }
   for (int i = 0; i < 2; i++) {
     button_old[i + 16] = button_now[i + 16];
-    button_now[i + 16] = stm32_to_pc.tombol & (1 << i);
+    button_now[i + 16] = ~stm32_to_pc.tombol & (1 << i);
+  }
+
+  if (algorithm_mission == 0) {
+    static rclcpp::Time time_old = this->now();
+    static rclcpp::Time time_now = this->now();
+    if (BDN_SELECT) { time_old = this->now(); }
+    time_now = this->now();
+    double dt = (time_now - time_old).seconds();
+
+    if (button_now[17] && dt > 5) { std::cerr << "Shutting down in " << 10 - dt << " seconds" << std::endl; }
+    if (button_now[17] && dt > 10) { system("poweroff"); }
   }
 
   process_all();
@@ -100,7 +113,16 @@ void Routine::cllbck_tim_50hz() {
   basestation_from_pc.battery_charging = stm32_to_pc.battery_charging;
   pub_basestation_from_pc->publish(basestation_from_pc);
 
-
+  if (algorithm_mission == 3 || algorithm_mission == 4 || algorithm_mission == 5 || algorithm_mission == 7) {
+    ui_from_pc.state_machine = 0;  // Jalan
+  } else if (algorithm_mission == 8) {
+    ui_from_pc.state_machine = 1;  // Interaksi
+  } else if (algorithm_mission == 0 || algorithm_mission == 6) {
+    ui_from_pc.state_machine = 2;  // Berhenti
+  }
+  ui_from_pc.human_presence = human_presence;
+  ui_from_pc.human_temperature = human_temperature;
+  pub_ui_from_pc->publish(ui_from_pc);
 
   pub_obstacle_parameter->publish(obstacle_parameter);
 }
@@ -135,6 +157,22 @@ void Routine::cllbck_sub_ui_to_pc(const raisa_interfaces::msg::UiToPc::SharedPtr
 void Routine::cllbck_sub_obstacle_data(const raisa_interfaces::msg::ObstacleData::SharedPtr msg) {
   // Copy message
   obstacle_data = *msg;
+}
+
+void Routine::cllbck_sub_faces(const raisa_interfaces::msg::Faces::SharedPtr msg) {
+  float sum = 0, num = 0;
+  for (auto face : msg->faces) {
+    sum += face.origin_x + face.width / 2;
+    num += 1;
+  }
+
+  if (num != 0) {
+    human_presence = 1;
+    human_position = sum / num - 0.5;
+  } else {
+    human_presence = 0;
+    human_position = 0;
+  }
 }
 
 void Routine::cllbck_sub_odometry_filtered(const nav_msgs::msg::Odometry::SharedPtr msg) {

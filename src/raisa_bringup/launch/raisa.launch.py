@@ -168,8 +168,8 @@ def generate_launch_description():
         parameters=[{'msop_port': 2368,
                      'difop_port': 2369,
                      'frame_id': 'lidar_link',
-                     'azimuth_start': 190.0,
-                     'azimuth_stop': 350.0,
+                     'azimuth_start': 225.0,
+                     'azimuth_stop': 315.0,
                      'azimuth_step': 1.0,
                      'distance_min': 0.2,
                      'distance_max': 20.0}],
@@ -216,7 +216,7 @@ def generate_launch_description():
         executable='mjpeg_server.py',
         name='mjpeg_server',
         respawn=True,
-        parameters=[{'mjpeg_server.topics': ['/faces_display', '/image_bgr', '/image_gray'],
+        parameters=[{'mjpeg_server.topics': ['/color/image_raw', '/faces_display', '/image_bgr', '/image_gray'],
                      'mjpeg_server.port': 9999}])
 
     obstacle_detector = Node(
