@@ -293,7 +293,7 @@ void Routine::process_mission() {
         if (list_route.size() < 2) {
           RCLCPP_ERROR(this->get_logger(), "Not enough route coordinates. Cannot start operation mode.");
           publish_sound("sound_error.wav");
-        } else if (stm32_to_pc.battery_soc < 5 || stm32_to_pc.battery_charging) {
+        } else if (stm32_to_pc.battery_soc < 15 || stm32_to_pc.battery_charging) {
           RCLCPP_ERROR(this->get_logger(), "Battery is being charged or low. Cannot start operation mode.");
           publish_sound("sound_error.wav");
         } else {
