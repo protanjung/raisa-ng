@@ -232,6 +232,12 @@ def generate_launch_description():
         respawn=True,
         parameters=[param_raisa])
 
+    sound_player = Node(
+        package='raisa_middleware',
+        executable='sound_player.py',
+        name='sound_player',
+        respawn=True)
+
     transform_broadcaster = Node(
         package='raisa_middleware',
         executable='transform_broadcaster',
@@ -268,6 +274,7 @@ def generate_launch_description():
         mjpeg_server,
         obstacle_detector,
         pose_estimator,
+        sound_player,
         transform_broadcaster,
         routine,
     ])

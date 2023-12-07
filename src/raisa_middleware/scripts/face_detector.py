@@ -2,8 +2,6 @@
 
 from ament_index_python.packages import get_package_share_directory
 from cv_bridge import CvBridge
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
 from raisa_interfaces.msg import Face, Faces
 from rclpy.node import Node
 from sensor_msgs.msg import Image
@@ -40,7 +38,6 @@ class FaceDetector(Node):
         self.BaseOptions = mp.tasks.BaseOptions
         self.FaceDetector = mp.tasks.vision.FaceDetector
         self.FaceDetectorOptions = mp.tasks.vision.FaceDetectorOptions
-        self.FaceDetectorResult = mp.tasks.vision.FaceDetectorResult
         self.VisionRunningMode = mp.tasks.vision.RunningMode
 
         model_path = get_package_share_directory('raisa_middleware') + '/assets/blaze_face_short_range.tflite'

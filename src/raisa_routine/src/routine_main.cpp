@@ -46,6 +46,7 @@ Routine::Routine() : Node("routine") {
   pub_ui_from_pc = this->create_publisher<raisa_interfaces::msg::UiFromPc>("ui/from_pc", 10);
   pub_obstacle_parameter = this->create_publisher<raisa_interfaces::msg::ObstacleParameter>("obstacle/parameter", 10);
   pub_initialpose = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("initialpose", 10);
+  pub_sound = this->create_publisher<std_msgs::msg::String>("sound", 10);
   //-----Service client
   cli_pose_reset = this->create_client<std_srvs::srv::Empty>("pose/reset");
   cli_rtabmap_reset = this->create_client<std_srvs::srv::Empty>("rtabmap/reset");
@@ -83,14 +84,24 @@ void Routine::cllbck_tim_10hz() {
   }
 
   if (algorithm_mission == 0) {
-    static rclcpp::Time time_old = this->now();
+    static rclcpp::Time time_old0 = this->now();
+    static rclcpp::Time time_old1 = this->now();
     static rclcpp::Time time_now = this->now();
-    if (BDN_SELECT) { time_old = this->now(); }
+    if (BDN_SELECT) {
+      time_old0 = this->now();
+      time_old1 = this->now();
+    }
     time_now = this->now();
-    double dt = (time_now - time_old).seconds();
+    double dt0 = (time_now - time_old0).seconds();
+    double dt1 = (time_now - time_old1).seconds();
 
-    if (button_now[17] && dt > 5) { std::cerr << "Shutting down in " << 10 - dt << " seconds" << std::endl; }
-    if (button_now[17] && dt > 10) { system("poweroff"); }
+    if (button_now[17] && dt0 > 5 && time_now - time_old1 > 1s) {
+      time_old1 = time_now;
+      publish_sound("sound_shutdown.wav");
+    }
+
+    if (button_now[17] && dt0 > 5) { std::cerr << "Shutting down in " << 10 - dt0 << " seconds" << std::endl; }
+    if (button_now[17] && dt0 > 10) { system("poweroff"); }
   }
 
   process_all();

@@ -18,6 +18,7 @@
 #include "raisa_interfaces/msg/ui_to_pc.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float32.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/empty.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
@@ -88,6 +89,7 @@ class Routine : public rclcpp::Node {
   rclcpp::Publisher<raisa_interfaces::msg::UiFromPc>::SharedPtr pub_ui_from_pc;
   rclcpp::Publisher<raisa_interfaces::msg::ObstacleParameter>::SharedPtr pub_obstacle_parameter;
   rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pub_initialpose;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pub_sound;
   //-----Service client
   rclcpp::Client<std_srvs::srv::Empty>::SharedPtr cli_pose_reset;
   rclcpp::Client<std_srvs::srv::Empty>::SharedPtr cli_rtabmap_reset;
@@ -210,6 +212,7 @@ class Routine : public rclcpp::Node {
 
   geometry_msgs::msg::Quaternion rpy_to_quaternion(float _roll, float _pitch, float _yaw);
   void publish_initialpose(float _x, float _y, float _theta);
+  void publish_sound(std::string _sound);
 };
 
 #endif  // ROUTINE_HPP_

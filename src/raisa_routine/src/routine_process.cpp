@@ -193,12 +193,8 @@ void Routine::process_storage() {
         geometry_msgs::msg::Point p = nearest_path(i.x, i.y, path_active);
         i.gate_x = p.x;
         i.gate_y = p.y;
-
         i.list_route_entry = generate_path(i.x, i.y, i.gate_x, i.gate_y, 0.1);
-        for (auto j : i.list_route_entry) { RCLCPP_INFO(this->get_logger(), "  (%f, %f)", j.x, j.y); }
-
         i.list_route_exit = generate_path(i.gate_x, i.gate_y, i.x, i.y, 0.1);
-        for (auto j : i.list_route_exit) { RCLCPP_INFO(this->get_logger(), "  (%f, %f)", j.x, j.y); }
       }
 
       algorithm_storage = -1;
@@ -276,6 +272,7 @@ void Routine::process_mission() {
       if (BDN_8 || BDN_SELECT) {
         publish_initialpose(0, 0, 0);
         RCLCPP_WARN(this->get_logger(), "Robot restarted at origin (0, 0, 0). Be aware of wrong position.");
+        publish_sound("sound_beep.wav");
       }
 
       // -------------------------------
@@ -284,21 +281,26 @@ void Routine::process_mission() {
         if (slam_mapping_mode() == false) { break; }
         algorithm_mission = 1;
         RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 1 (MAPPING MODE)");
+        publish_sound("sound_beep.wav");
       }
       if (BDN_9) {
         algorithm_storage = 0;
         algorithm_mission = 2;
         RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 2 (ROUTING MODE)");
+        publish_sound("sound_beep.wav");
       }
       if (BDN_11 || BDN_START) {
         if (list_route.size() < 2) {
           RCLCPP_ERROR(this->get_logger(), "Not enough route coordinates. Cannot start operation mode.");
+          publish_sound("sound_error.wav");
         } else if (stm32_to_pc.battery_soc < 5 || stm32_to_pc.battery_charging) {
           RCLCPP_ERROR(this->get_logger(), "Battery is being charged or low. Cannot start operation mode.");
+          publish_sound("sound_error.wav");
         } else {
           is_first_run = true;
           algorithm_mission = 3;
           RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 3 (OPERATION MODE)");
+          publish_sound("sound_start.wav");
         }
       }
 
@@ -315,6 +317,7 @@ void Routine::process_mission() {
       if (BDN_8) {
         if (slam_reset() == false) { break; }
         RCLCPP_WARN(this->get_logger(), "Mapping restarted at origin (0, 0, 0). You can start mapping now.");
+        publish_sound("sound_beep.wav");
       }
 
       // -------------------------------
@@ -323,6 +326,7 @@ void Routine::process_mission() {
         if (slam_localization_mode() == false) { break; }
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 1 (MAPPING MODE) -> 0 (IDDLE)");
+        publish_sound("sound_beep.wav");
       }
 
       break;
@@ -339,6 +343,7 @@ void Routine::process_mission() {
         list_route.clear();
         list_poi.clear();
         RCLCPP_WARN(this->get_logger(), "Route and POI list cleared. Please create new route and POI.");
+        publish_sound("sound_beep.wav");
       }
       if (BDN_9) {
         route x;
@@ -346,13 +351,16 @@ void Routine::process_mission() {
         x.y = fb_y;
         list_route.push_back(x);
         RCLCPP_WARN(this->get_logger(), "Route added. There are %ld route coordinates now.", list_route.size());
+        publish_sound("sound_beep.wav");
       }
       if (BDN_10) {
         if (list_route.size() > 0) {
           list_route.pop_back();
           RCLCPP_WARN(this->get_logger(), "Route removed. There are %ld route coordinates now.", list_route.size());
+          publish_sound("sound_beep.wav");
         } else {
           RCLCPP_WARN(this->get_logger(), "Route list is empty. Cannot remove route coordinate.");
+          publish_sound("sound_error.wav");
         }
       }
       if (BDN_11) {
@@ -367,13 +375,16 @@ void Routine::process_mission() {
         }
         list_poi.push_back(x);
         RCLCPP_WARN(this->get_logger(), "POI added. There are %ld POI coordinates now.", list_poi.size());
+        publish_sound("sound_beep.wav");
       }
       if (BDN_12) {
         if (list_poi.size() > 0) {
           list_poi.pop_back();
           RCLCPP_WARN(this->get_logger(), "POI removed. There are %ld POI coordinates now.", list_poi.size());
+          publish_sound("sound_beep.wav");
         } else {
           RCLCPP_WARN(this->get_logger(), "POI list is empty. Cannot remove POI coordinate.");
+          publish_sound("sound_error.wav");
         }
       }
 
@@ -383,6 +394,7 @@ void Routine::process_mission() {
         algorithm_storage = 1;
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 2 (ROUTING MODE) -> 0 (IDDLE)");
+        publish_sound("sound_beep.wav");
       }
 
       break;
@@ -436,6 +448,7 @@ void Routine::process_mission() {
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 3 (OPERATION MODE) -> 0 (IDDLE)");
+        publish_sound("sound_stop.wav");
       }
 
       break;
@@ -469,6 +482,7 @@ void Routine::process_mission() {
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 4 (OPERATION MODE) -> 0 (IDDLE)");
+        publish_sound("sound_stop.wav");
       }
 
       break;
@@ -500,6 +514,7 @@ void Routine::process_mission() {
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 5 (OPERATION MODE) -> 0 (IDDLE)");
+        publish_sound("sound_stop.wav");
       }
 
       break;
@@ -518,6 +533,7 @@ void Routine::process_mission() {
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 6 (OPERATION MODE) -> 0 (IDDLE)");
+        publish_sound("sound_stop.wav");
       }
 
       break;
@@ -555,6 +571,7 @@ void Routine::process_mission() {
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 7 (OPERATION MODE) -> 0 (IDDLE)");
+        publish_sound("sound_stop.wav");
       }
 
       break;
@@ -588,6 +605,7 @@ void Routine::process_mission() {
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
         RCLCPP_WARN(this->get_logger(), "State 8 (OPERATION MODE) -> 0 (IDDLE)");
+        publish_sound("sound_stop.wav");
       }
 
       break;
@@ -738,4 +756,10 @@ void Routine::publish_initialpose(float _x, float _y, float _theta) {
   msg_initialpose.pose.covariance[28] = 1e6;
   msg_initialpose.pose.covariance[35] = 1e-12;
   pub_initialpose->publish(msg_initialpose);
+}
+
+void Routine::publish_sound(std::string _sound) {
+  std_msgs::msg::String msg_sound;
+  msg_sound.data = _sound;
+  pub_sound->publish(msg_sound);
 }
