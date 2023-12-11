@@ -11,7 +11,7 @@ class IOSTM32 : public rclcpp::Node {
   std::string stm32_ip;
   int stm32_port;
   //-----Timer
-  rclcpp::TimerBase::SharedPtr tim_50hz;
+  rclcpp::TimerBase::SharedPtr tim_30hz;
   //-----Subscriber
   rclcpp::Subscription<raisa_interfaces::msg::Stm32FromPc>::SharedPtr sub_stm32_from_pc;
   //-----Publisher
@@ -55,7 +55,7 @@ class IOSTM32 : public rclcpp::Node {
     this->get_parameter("stm32.ip", stm32_ip);
     this->get_parameter("stm32.port", stm32_port);
     //-----Timer
-    tim_50hz = this->create_wall_timer(20ms, std::bind(&IOSTM32::cllbck_tim_50hz, this));
+    tim_30hz = this->create_wall_timer(33ms, std::bind(&IOSTM32::cllbck_tim_30hz, this));
     //-----Subscriber
     sub_stm32_from_pc = this->create_subscription<raisa_interfaces::msg::Stm32FromPc>(
         "stm32/from_pc", 10, std::bind(&IOSTM32::cllbck_sub_stm32_from_pc, this, std::placeholders::_1));
@@ -70,7 +70,7 @@ class IOSTM32 : public rclcpp::Node {
 
   //====================================
 
-  void cllbck_tim_50hz() {
+  void cllbck_tim_30hz() {
     if (stm32_routine() == false) {
       RCLCPP_ERROR(this->get_logger(), "STM32 routine failed");
       rclcpp::shutdown();

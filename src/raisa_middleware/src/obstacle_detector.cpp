@@ -89,6 +89,13 @@ class ObstacleDetector : public rclcpp::Node {
     // =================================
 
     pcl::fromROSMsg(*msg, points_lidar);
+
+    if (points_lidar.points.size() == 0) {
+      obstacle_data.emergency = 0.85 * obstacle_data.emergency + 0.15 * 1.0;
+      pub_obstacle_data->publish(obstacle_data);
+      return;
+    }
+
     pcl_ros::transformPointCloud(points_lidar, points_base, tf_base_lidar);
 
     // =================================

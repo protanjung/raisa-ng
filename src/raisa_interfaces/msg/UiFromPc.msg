@@ -1,3 +1,4 @@
 uint8 state_machine
 uint8 human_presence
-uint8 human_temperature
+float32 human_temperature
+uint8 emergency

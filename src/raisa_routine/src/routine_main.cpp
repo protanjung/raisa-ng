@@ -135,6 +135,7 @@ void Routine::cllbck_tim_50hz() {
   basestation_from_pc.battery_soc = stm32_to_pc.battery_soc;
   basestation_from_pc.battery_charging = stm32_to_pc.battery_charging;
   pub_basestation_from_pc->publish(basestation_from_pc);
+  basestation_from_pc.log = "";
 
   if (algorithm_mission == 3 || algorithm_mission == 4 || algorithm_mission == 5 || algorithm_mission == 7) {
     ui_from_pc.state_machine = 0;  // Jalan
@@ -145,6 +146,11 @@ void Routine::cllbck_tim_50hz() {
   }
   ui_from_pc.human_presence = human_presence;
   ui_from_pc.human_temperature = human_temperature;
+  if (obstacle_data.emergency > 0.75) {
+    ui_from_pc.emergency = 1;
+  } else if (obstacle_data.emergency < 0.25) {
+    ui_from_pc.emergency = 0;
+  }
   pub_ui_from_pc->publish(ui_from_pc);
 
   pub_obstacle_parameter->publish(obstacle_parameter);

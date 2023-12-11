@@ -6,3 +6,4 @@ float32 battery_voltage
 float32 battery_current
 float32 battery_soc
 uint8 battery_charging
+string log

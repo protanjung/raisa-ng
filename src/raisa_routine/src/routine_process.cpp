@@ -271,7 +271,7 @@ void Routine::process_mission() {
 
       if (BDN_8 || BDN_SELECT) {
         publish_initialpose(0, 0, 0);
-        RCLCPP_WARN(this->get_logger(), "Robot restarted at origin (0, 0, 0). Be aware of wrong position.");
+        print_log("WARN", "Robot restarted at origin (0, 0, 0). Be aware of wrong position.");
         publish_sound("sound_beep.wav");
       }
 
@@ -280,26 +280,27 @@ void Routine::process_mission() {
       if (BDN_7) {
         if (slam_mapping_mode() == false) { break; }
         algorithm_mission = 1;
-        RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 1 (MAPPING MODE)");
+        print_log("WARN", "State 0 (IDDLE) -> 1 (MAPPING MODE)");
         publish_sound("sound_beep.wav");
       }
       if (BDN_9) {
         algorithm_storage = 0;
         algorithm_mission = 2;
-        RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 2 (ROUTING MODE)");
+        print_log("WARN", "State 0 (IDDLE) -> 2 (ROUTING MODE)");
         publish_sound("sound_beep.wav");
       }
       if (BDN_11 || BDN_START) {
         if (list_route.size() < 2) {
-          RCLCPP_ERROR(this->get_logger(), "Not enough route coordinates. Cannot start operation mode.");
+          print_log("ERROR", "Not enough route coordinates. Cannot start operation mode.");
           publish_sound("sound_error.wav");
         } else if (stm32_to_pc.battery_soc < 15 || stm32_to_pc.battery_charging) {
-          RCLCPP_ERROR(this->get_logger(), "Battery is being charged or low. Cannot start operation mode.");
+          print_log("ERROR", "Battery is being charged or low. Cannot start operation mode.");
           publish_sound("sound_error.wav");
         } else {
           is_first_run = true;
+          pp_active.set_path(&path_active);
           algorithm_mission = 3;
-          RCLCPP_WARN(this->get_logger(), "State 0 (IDDLE) -> 3 (OPERATION MODE)");
+          print_log("WARN", "State 0 (IDDLE) -> 3 (OPERATION MODE)");
           publish_sound("sound_start.wav");
         }
       }
@@ -316,7 +317,7 @@ void Routine::process_mission() {
 
       if (BDN_8) {
         if (slam_reset() == false) { break; }
-        RCLCPP_WARN(this->get_logger(), "Mapping restarted at origin (0, 0, 0). You can start mapping now.");
+        print_log("WARN", "Mapping restarted at origin (0, 0, 0). You can start mapping now.");
         publish_sound("sound_beep.wav");
       }
 
@@ -325,7 +326,7 @@ void Routine::process_mission() {
       if (BDN_7) {
         if (slam_localization_mode() == false) { break; }
         algorithm_mission = 0;
-        RCLCPP_WARN(this->get_logger(), "State 1 (MAPPING MODE) -> 0 (IDDLE)");
+        print_log("WARN", "State 1 (MAPPING MODE) -> 0 (IDDLE)");
         publish_sound("sound_beep.wav");
       }
 
@@ -342,7 +343,7 @@ void Routine::process_mission() {
       if (BDN_8) {
         list_route.clear();
         list_poi.clear();
-        RCLCPP_WARN(this->get_logger(), "Route and POI list cleared. Please create new route and POI.");
+        print_log("WARN", "Route and POI list cleared. Please create new route and POI.");
         publish_sound("sound_beep.wav");
       }
       if (BDN_9) {
@@ -350,16 +351,16 @@ void Routine::process_mission() {
         x.x = fb_x;
         x.y = fb_y;
         list_route.push_back(x);
-        RCLCPP_WARN(this->get_logger(), "Route added. There are %ld route coordinates now.", list_route.size());
+        print_log("WARN", "Route added. There are %ld route coordinates now.", list_route.size());
         publish_sound("sound_beep.wav");
       }
       if (BDN_10) {
         if (list_route.size() > 0) {
           list_route.pop_back();
-          RCLCPP_WARN(this->get_logger(), "Route removed. There are %ld route coordinates now.", list_route.size());
+          print_log("WARN", "Route removed. There are %ld route coordinates now.", list_route.size());
           publish_sound("sound_beep.wav");
         } else {
-          RCLCPP_WARN(this->get_logger(), "Route list is empty. Cannot remove route coordinate.");
+          print_log("WARN", "Route list is empty. Cannot remove route coordinate.");
           publish_sound("sound_error.wav");
         }
       }
@@ -374,16 +375,16 @@ void Routine::process_mission() {
           x.duration = 120;
         }
         list_poi.push_back(x);
-        RCLCPP_WARN(this->get_logger(), "POI added. There are %ld POI coordinates now.", list_poi.size());
+        print_log("WARN", "POI added. There are %ld POI coordinates now.", list_poi.size());
         publish_sound("sound_beep.wav");
       }
       if (BDN_12) {
         if (list_poi.size() > 0) {
           list_poi.pop_back();
-          RCLCPP_WARN(this->get_logger(), "POI removed. There are %ld POI coordinates now.", list_poi.size());
+          print_log("WARN", "POI removed. There are %ld POI coordinates now.", list_poi.size());
           publish_sound("sound_beep.wav");
         } else {
-          RCLCPP_WARN(this->get_logger(), "POI list is empty. Cannot remove POI coordinate.");
+          print_log("WARN", "POI list is empty. Cannot remove POI coordinate.");
           publish_sound("sound_error.wav");
         }
       }
@@ -393,7 +394,7 @@ void Routine::process_mission() {
       if (BDN_7) {
         algorithm_storage = 1;
         algorithm_mission = 0;
-        RCLCPP_WARN(this->get_logger(), "State 2 (ROUTING MODE) -> 0 (IDDLE)");
+        print_log("WARN", "State 2 (ROUTING MODE) -> 0 (IDDLE)");
         publish_sound("sound_beep.wav");
       }
 
@@ -424,7 +425,7 @@ void Routine::process_mission() {
       if (is_obstructed && human_presence) {
         mission_time = this->now();
         algorithm_mission = 8;
-        RCLCPP_WARN(this->get_logger(), "State 3 -> State 8 (Human interaction)");
+        print_log("WARN", "State 3 -> State 8 (Human interaction)");
       }
 
       // ===============================
@@ -434,12 +435,12 @@ void Routine::process_mission() {
         if (is_first_run) {
           is_first_run = false;
           is_come_back = true;
-          RCLCPP_WARN(this->get_logger(), "State 3 -> State 3 (Going to next POI)");
+          print_log("WARN", "State 3 -> State 3 (Going to next POI)");
         } else {
           mission_index = selected_gate;
           pp_active.set_path(&list_poi[mission_index].list_route_exit);
           algorithm_mission = 4;
-          RCLCPP_WARN(this->get_logger(), "State 3 -> State 4 (Going to POI)");
+          print_log("WARN", "State 3 -> State 4 (Going to POI)");
         }
       }
 
@@ -447,7 +448,7 @@ void Routine::process_mission() {
 
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
-        RCLCPP_WARN(this->get_logger(), "State 3 (OPERATION MODE) -> 0 (IDDLE)");
+        print_log("WARN", "State 3 (OPERATION MODE) -> 0 (IDDLE)");
         publish_sound("sound_stop.wav");
       }
 
@@ -474,14 +475,14 @@ void Routine::process_mission() {
         mission_index = selected_gate;
         pp_active.set_path(&list_poi[mission_index].list_route_entry);
         algorithm_mission = 5;
-        RCLCPP_WARN(this->get_logger(), "State 4 -> State 5 (Parking)");
+        print_log("WARN", "State 4 -> State 5 (Parking)");
       }
 
       // -------------------------------
 
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
-        RCLCPP_WARN(this->get_logger(), "State 4 (OPERATION MODE) -> 0 (IDDLE)");
+        print_log("WARN", "State 4 (OPERATION MODE) -> 0 (IDDLE)");
         publish_sound("sound_stop.wav");
       }
 
@@ -502,7 +503,7 @@ void Routine::process_mission() {
               0.3)) {
         mission_time = this->now();
         algorithm_mission = 6;
-        RCLCPP_WARN(this->get_logger(), "State 5 -> State 6 (Waiting)");
+        print_log("WARN", "State 5 -> State 6 (Waiting)");
       }
 
       tgt_dx = temp_dx * cosf(fb_theta) + temp_dy * sinf(fb_theta);
@@ -513,7 +514,7 @@ void Routine::process_mission() {
 
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
-        RCLCPP_WARN(this->get_logger(), "State 5 (OPERATION MODE) -> 0 (IDDLE)");
+        print_log("WARN", "State 5 (OPERATION MODE) -> 0 (IDDLE)");
         publish_sound("sound_stop.wav");
       }
 
@@ -525,14 +526,20 @@ void Routine::process_mission() {
       if (this->now() - mission_time > std::chrono::seconds((int)list_poi[mission_index].duration)) {
         mission_time = this->now();
         algorithm_mission = 7;
-        RCLCPP_WARN(this->get_logger(), "State 6 -> State 7 (Going back)");
+        print_log("WARN", "State 6 -> State 7 (Going back)");
       }
 
       // -------------------------------
 
+      if (BDN_11 || BDN_SELECT) {
+        algorithm_mission = 7;
+        print_log("WARN", "State 6 -> State 7 (Going back)");
+        publish_sound("sound_start.wav");
+      }
+
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
-        RCLCPP_WARN(this->get_logger(), "State 6 (OPERATION MODE) -> 0 (IDDLE)");
+        print_log("WARN", "State 6 (OPERATION MODE) -> 0 (IDDLE)");
         publish_sound("sound_stop.wav");
       }
 
@@ -563,14 +570,14 @@ void Routine::process_mission() {
         mission_index = selected_gate;
         pp_active.set_path(&path_active);
         algorithm_mission = 3;
-        RCLCPP_WARN(this->get_logger(), "State 7 -> State 3 (Going to next POI)");
+        print_log("WARN", "State 7 -> State 3 (Going to next POI)");
       }
 
       // -------------------------------
 
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
-        RCLCPP_WARN(this->get_logger(), "State 7 (OPERATION MODE) -> 0 (IDDLE)");
+        print_log("WARN", "State 7 (OPERATION MODE) -> 0 (IDDLE)");
         publish_sound("sound_stop.wav");
       }
 
@@ -581,30 +588,32 @@ void Routine::process_mission() {
       tgt_dx = tgt_dy = tgt_dtheta = 0;
 
       if (human_position < -0.1) {
-        tgt_dtheta = 0.3;
+        tgt_dtheta = fminf(0.25, human_position * -0.75);
       } else if (human_position > 0.1) {
-        tgt_dtheta = -0.3;
+        tgt_dtheta = fmaxf(-0.25, human_position * -0.75);
       }
 
       float error_theta = error_sudut_robot_ke_titik(pp_active.goal_x, pp_active.goal_y);
-      if ((error_theta > M_PI_2 && human_position > 0.1) || (error_theta < -M_PI_2 && human_position < -0.1)) {
+      if ((error_theta > M_PI_4 && human_position > 0.1) || (error_theta < -M_PI_4 && human_position < -0.1)) {
         tgt_dtheta = 0;
       }
 
       // ===============================
 
+      uint8_t motion_delay = ui_to_pc.motion_delay > 5 ? ui_to_pc.motion_delay : 5;
+
       if (human_presence) {
         mission_time = this->now();
-      } else if (this->now() - mission_time > 5s) {
+      } else if (this->now() - mission_time > std::chrono::seconds(motion_delay)) {
         algorithm_mission = 3;
-        RCLCPP_WARN(this->get_logger(), "State 8 -> State 3 (Going to next POI)");
+        print_log("WARN", "State 8 -> State 3 (Going to next POI)");
       }
 
       // -------------------------------
 
       if (BDN_7 || BDN_START) {
         algorithm_mission = 0;
-        RCLCPP_WARN(this->get_logger(), "State 8 (OPERATION MODE) -> 0 (IDDLE)");
+        print_log("WARN", "State 8 (OPERATION MODE) -> 0 (IDDLE)");
         publish_sound("sound_stop.wav");
       }
 
@@ -696,11 +705,11 @@ std::vector<geometry_msgs::msg::Point> Routine::generate_path(float _x0, float _
 
 bool Routine ::slam_reset() {
   if (!cli_pose_reset->wait_for_service(std::chrono::seconds(1))) {
-    RCLCPP_ERROR(this->get_logger(), "Service pose/reset not available");
+    print_log("ERROR", "Service pose/reset not available");
     return false;
   }
   if (!cli_rtabmap_reset->wait_for_service(std::chrono::seconds(1))) {
-    RCLCPP_ERROR(this->get_logger(), "Service rtabmap/reset not available");
+    print_log("ERROR", "Service rtabmap/reset not available");
     return false;
   }
   auto req_reset = std::make_shared<std_srvs::srv::Empty::Request>();
@@ -711,7 +720,7 @@ bool Routine ::slam_reset() {
 
 bool Routine::slam_localization_mode() {
   if (!cli_rtabmap_set_mode_localization->wait_for_service(std::chrono::seconds(1))) {
-    RCLCPP_ERROR(this->get_logger(), "Service rtabmap/set_mode_localization not available");
+    print_log("ERROR", "Service rtabmap/set_mode_localization not available");
     return false;
   }
   auto req_set_mode_localization = std::make_shared<std_srvs::srv::Empty::Request>();
@@ -721,7 +730,7 @@ bool Routine::slam_localization_mode() {
 
 bool Routine::slam_mapping_mode() {
   if (!cli_rtabmap_set_mode_mapping->wait_for_service(std::chrono::seconds(1))) {
-    RCLCPP_ERROR(this->get_logger(), "Service rtabmap/set_mode_mapping not available");
+    print_log("ERROR", "Service rtabmap/set_mode_mapping not available");
     return false;
   }
   auto req_set_mode_mapping = std::make_shared<std_srvs::srv::Empty::Request>();
@@ -762,4 +771,25 @@ void Routine::publish_sound(std::string _sound) {
   std_msgs::msg::String msg_sound;
   msg_sound.data = _sound;
   pub_sound->publish(msg_sound);
+}
+
+void Routine::print_log(const char* severity, const char* _format, ...) {
+  va_list args;
+  va_start(args, _format);
+
+  char buffer[1024];
+  vsprintf(buffer, _format, args);
+  va_end(args);
+
+  basestation_from_pc.log += std::string(buffer) + "\n";
+
+  if (strcmp(severity, "INFO") == 0) {
+    RCLCPP_INFO(this->get_logger(), "%s", buffer);
+  } else if (strcmp(severity, "WARN") == 0) {
+    RCLCPP_WARN(this->get_logger(), "%s", buffer);
+  } else if (strcmp(severity, "ERROR") == 0) {
+    RCLCPP_ERROR(this->get_logger(), "%s", buffer);
+  } else if (strcmp(severity, "FATAL") == 0) {
+    RCLCPP_FATAL(this->get_logger(), "%s", buffer);
+  }
 }

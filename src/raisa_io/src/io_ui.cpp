@@ -24,12 +24,14 @@ class IOUI : public rclcpp::Node {
 
   // Data to PC
   // ==========
+  uint8_t motion_delay;
 
   // Data from PC
   // ============
   uint8_t state_machine;
   uint8_t human_presence;
-  uint8_t human_temperature;
+  float human_temperature;
+  uint8_t emergency;
 
   IOUI() : Node("io_ui") {
     //-----Parameter
@@ -64,6 +66,7 @@ class IOUI : public rclcpp::Node {
     state_machine = msg->state_machine;
     human_presence = msg->human_presence;
     human_temperature = msg->human_temperature;
+    emergency = msg->emergency;
   }
 
   //====================================
@@ -83,22 +86,28 @@ class IOUI : public rclcpp::Node {
     int len_data_to_pc = -1;
     int len_data_from_pc = -1;
 
-    if ((len_data_to_pc = ui_udp.recv(ui_rx_buffer, sizeof(ui_rx_buffer))) >= 0) {
+    if ((len_data_to_pc = ui_udp.recv(ui_rx_buffer, sizeof(ui_rx_buffer))) >= 3) {
       // Communication Protocol (UI -> PC)
       // =================================
       // Offset   | Size  | Description
+      // 0        | 1     | 'O'
+      // 1        | 1     | 'K'
+      // 2        | 1     | motion_delay
+      if (ui_rx_buffer[0] == 'O' && ui_rx_buffer[1] == 'K') { memcpy(&motion_delay, ui_rx_buffer + 2, 1); }
 
       // Communication Protocol (PC -> UI)
       // =================================
       // Offset   | Size  | Description
       // 0        | 1     | state_machine
       // 1        | 1     | human_presence
-      // 2        | 1     | human_temperature
+      // 2        | 4     | human_temperature
+      // 6        | 1     | emergency
       memcpy(ui_tx_buffer + 0, &state_machine, 1);
       memcpy(ui_tx_buffer + 1, &human_presence, 1);
-      memcpy(ui_tx_buffer + 2, &human_temperature, 1);
+      memcpy(ui_tx_buffer + 2, &human_temperature, 4);
+      memcpy(ui_tx_buffer + 6, &emergency, 1);
 
-      len_data_from_pc = ui_udp.send(ui_tx_buffer, 3);
+      len_data_from_pc = ui_udp.send(ui_tx_buffer, 7);
     }
 
     // =================================
@@ -113,6 +122,7 @@ class IOUI : public rclcpp::Node {
 
     static raisa_interfaces::msg::UiToPc msg_ui_to_pc;
     // ----
+    msg_ui_to_pc.motion_delay = motion_delay;
     // ----
     pub_ui_to_pc->publish(msg_ui_to_pc);
 

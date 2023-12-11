@@ -80,6 +80,22 @@ class IOBasestation : public rclcpp::Node {
     battery_current = msg->battery_current;
     battery_soc = msg->battery_soc;
     battery_charging = msg->battery_charging;
+
+    std::string delimiter = "\n";
+    std::string token = "";
+    
+    size_t pos = 0;
+    while ((pos = msg->log.find(delimiter)) != std::string::npos) {
+      token = msg->log.substr(0, pos);
+
+      uint8_t data[1024] = {0};
+      data[0] = data[1] = data[2] = data[3] = 0xff;
+      memcpy(data + 4, token.c_str(), token.length());
+
+      basestation_udp.send(data, token.length() + 4);
+
+      msg->log.erase(0, pos + delimiter.length());
+    }
   }
 
   //====================================

@@ -213,6 +213,7 @@ class Routine : public rclcpp::Node {
   geometry_msgs::msg::Quaternion rpy_to_quaternion(float _roll, float _pitch, float _yaw);
   void publish_initialpose(float _x, float _y, float _theta);
   void publish_sound(std::string _sound);
+  void print_log(const char* severity, const char* _format, ...);
 };
 
 #endif  // ROUTINE_HPP_

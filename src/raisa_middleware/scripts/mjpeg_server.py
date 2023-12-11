@@ -24,11 +24,10 @@ class MJPEGServer(Node):
         # ----Subscriber
         self.subscriber_topics = []
         self.subscriber_objects = {}
-        # ----Mutex
-        self.mtx_images = threading.Lock()
 
         # Image processing
         # ================
+        self.mtx_images = {}
         self.images = {}
 
         if self.mjpeg_server_init() == False:
@@ -45,19 +44,15 @@ class MJPEGServer(Node):
     # ==================================
 
     def cllbck_sub_image(self, msg, topic):
-        self.mtx_images.acquire()
-        self.images[topic] = CvBridge().imgmsg_to_cv2(msg, 'bgr8')
-        self.mtx_images.release()
+        if self.mtx_images[topic].acquire(False):
+            self.images[topic] = CvBridge().imgmsg_to_cv2(msg, 'bgr8')
+            self.mtx_images[topic].release()
 
     # ==================================
 
     def mjpeg_server_init(self):
         self.get_logger().info('Topics: ' + str(self.mjpeg_server_topics))
         self.get_logger().info('Port: ' + str(self.mjpeg_server_port))
-
-        # ==============================
-        # ------------------------------
-        # ==============================
 
         self.flask_app = Flask(__name__)
         self.flask_thread = threading.Thread(target=self.flask_app_run)
@@ -71,15 +66,15 @@ class MJPEGServer(Node):
 
         @self.flask_app.route('/<path:topic>')
         def display(topic):
+            if '/' + topic not in self.mjpeg_server_topics:
+                return Response('Topic not available')
+
             quality = 50
             if 'quality' in request.args:
                 quality = min(max(int(request.args['quality']), 0), 100)
-            scale = 1.0
+            scale = 0.5
             if 'scale' in request.args:
                 scale = min(max(float(request.args['scale']), 0.1), 10.0)
-
-            if '/' + topic not in self.mjpeg_server_topics:
-                return Response('Topic not available')
 
             return Response(self.flask_display('/' + topic, quality, scale), mimetype='multipart/x-mixed-replace; boundary=frame')
 
@@ -90,12 +85,14 @@ class MJPEGServer(Node):
             if topic not in self.subscriber_topics:
                 self.register_subscriber(topic)
                 self.subscriber_topics.append(topic)
+                self.mtx_images[topic] = threading.Lock()
                 self.images[topic] = np.zeros((64, 64, 3), np.uint8)
 
         for topic in self.subscriber_topics:
             if topic not in self.mjpeg_server_topics:
                 self.unregister_subscriber(topic)
                 self.subscriber_topics.remove(topic)
+                del self.mtx_images[topic]
                 del self.images[topic]
 
         return True
@@ -117,23 +114,25 @@ class MJPEGServer(Node):
     def flask_app_stop(self):
         self.flask_app.stop()
 
-    def flask_display(self, topic, quality=50, scale=1.0):
-        self.get_logger().warn('Displaying topic: ' + topic)
+    def flask_display(self, topic, quality, scale):
+        rate = self.create_rate(15.0)
         while True:
-            self.mtx_images.acquire()
-            image = self.images[topic]
-            self.mtx_images.release()
+            rate.sleep()
 
-            if scale != 1.0:
-                image = cv.resize(image, (0, 0), fx=scale, fy=scale)
+            if topic not in self.mtx_images or topic not in self.images:
+                continue
 
-            _, jpeg = cv.imencode('.jpg', image, [int(cv.IMWRITE_JPEG_QUALITY), quality])
+            self.mtx_images[topic].acquire()
+            image = self.images.get(topic, np.zeros((64, 64, 3), np.uint8))
+            self.mtx_images[topic].release()
+
+            image = cv.resize(image, (0, 0), fx=scale, fy=scale)
+            _, image = cv.imencode('.jpg', image, [cv.IMWRITE_JPEG_QUALITY, quality])
 
             try:
                 yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n\r\n')
+                       b'Content-Type: image/jpeg\r\n\r\n' + image.tobytes() + b'\r\n')
             except GeneratorExit:
-                self.get_logger().warn('Stopping display of topic: ' + topic)
                 break
 
 
