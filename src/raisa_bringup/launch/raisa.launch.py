@@ -54,7 +54,7 @@ def generate_launch_description():
                      'world_frame': 'map',
                      'two_d_mode': True,
                      'smooth_lagged_data': True,
-                     'history_length': 10.0,
+                     'history_length': 1.0,
                      'frequency': 10.0,
                      'odom0': '/odom',
                      'odom0_config': [True, True, False,
@@ -93,7 +93,9 @@ def generate_launch_description():
                      'enable_gyro': True,
                      'unite_imu_method': 2,
                      'align_depth.enable': True,
-                     'initial_reset': True}],
+                     'initial_reset': True,
+                     'depth_module.profile': '640x360x15',
+                     'rgb_camera.profile': '640x360x15'}],
         remappings=[('/imu', '/imu_raw')],
         arguments=['--ros-args', '--log-level', 'warn'])
 
@@ -217,7 +219,7 @@ def generate_launch_description():
         executable='mjpeg_server.py',
         name='mjpeg_server',
         respawn=True,
-        parameters=[{'mjpeg_server.topics': ['/color/image_raw', '/faces_display', '/image_bgr', '/image_gray'],
+        parameters=[{'mjpeg_server.topics': ['/color/image_raw', '/faces_display', '/image_bgr'],
                      'mjpeg_server.port': 9999}])
 
     obstacle_detector = Node(

@@ -219,6 +219,8 @@ void Routine::process_mission() {
   static uint8_t mission_index = 0;
   static rclcpp::Time mission_time = this->now();
 
+  static int algoritm_mission_old = 3;
+
   // ===================================
 
   // * Robot velocity target
@@ -293,7 +295,7 @@ void Routine::process_mission() {
         if (list_route.size() < 2) {
           print_log("ERROR", "Not enough route coordinates. Cannot start operation mode.");
           publish_sound("sound_error.wav");
-        } else if (stm32_to_pc.battery_soc < 15 || stm32_to_pc.battery_charging) {
+        } else if (stm32_to_pc.battery_voltage < 25 || stm32_to_pc.battery_charging) {
           print_log("ERROR", "Battery is being charged or low. Cannot start operation mode.");
           publish_sound("sound_error.wav");
         } else {
@@ -424,8 +426,10 @@ void Routine::process_mission() {
 
       if (is_obstructed && human_presence) {
         mission_time = this->now();
+        algoritm_mission_old = algorithm_mission;
         algorithm_mission = 8;
         print_log("WARN", "State 3 -> State 8 (Human interaction)");
+        publish_sound("sound_beep.wav");
       }
 
       // ===============================
@@ -466,6 +470,16 @@ void Routine::process_mission() {
         tgt_dx = 0;
         tgt_dy = 0;
         tgt_dtheta = pp_active.steering_angle;
+      }
+
+      // ===============================
+
+      if (is_obstructed && human_presence) {
+        mission_time = this->now();
+        algoritm_mission_old = algorithm_mission;
+        algorithm_mission = 8;
+        print_log("WARN", "State 4 -> State 8 (Human interaction)");
+        publish_sound("sound_beep.wav");
       }
 
       // ===============================
@@ -565,6 +579,16 @@ void Routine::process_mission() {
 
       // ===============================
 
+      if (is_obstructed && human_presence) {
+        mission_time = this->now();
+        algoritm_mission_old = algorithm_mission;
+        algorithm_mission = 8;
+        print_log("WARN", "State 7 -> State 8 (Human interaction)");
+        publish_sound("sound_beep.wav");
+      }
+
+      // ===============================
+
       int selected_gate = is_inside_gate();
       if (selected_gate >= 0) {
         mission_index = selected_gate;
@@ -600,13 +624,16 @@ void Routine::process_mission() {
 
       // ===============================
 
+      static int algorithm_mission_return = -1;
+      if (algorithm_mission != algoritm_mission_old) { algorithm_mission_return = algoritm_mission_old; }
+
       uint8_t motion_delay = ui_to_pc.motion_delay > 5 ? ui_to_pc.motion_delay : 5;
 
       if (human_presence) {
         mission_time = this->now();
       } else if (this->now() - mission_time > std::chrono::seconds(motion_delay)) {
-        algorithm_mission = 3;
-        print_log("WARN", "State 8 -> State 3 (Going to next POI)");
+        algorithm_mission = algorithm_mission_return;
+        print_log("WARN", "State 8 -> State %d", algorithm_mission_return);
       }
 
       // -------------------------------

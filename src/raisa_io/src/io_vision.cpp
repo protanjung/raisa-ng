@@ -12,7 +12,6 @@ class IOVision : public rclcpp::Node {
   rclcpp::TimerBase::SharedPtr tim_50hz;
   //-----Publisher
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_image_bgr;
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_image_gray;
 
   // Image processing
   // ================
@@ -27,7 +26,6 @@ class IOVision : public rclcpp::Node {
     tim_50hz = this->create_wall_timer(20ms, std::bind(&IOVision::cllbck_tim_50hz, this));
     //-----Publisher
     pub_image_bgr = this->create_publisher<sensor_msgs::msg::Image>("image_bgr", 1);
-    pub_image_gray = this->create_publisher<sensor_msgs::msg::Image>("image_gray", 1);
 
     if (io_vision_init() == false) {
       RCLCPP_ERROR(this->get_logger(), "Vision init failed");
@@ -76,9 +74,7 @@ class IOVision : public rclcpp::Node {
     cv::cvtColor(frame_bgr, frame_gray, cv::COLOR_BGR2GRAY);
 
     auto msg_image_bgr = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", frame_bgr).toImageMsg();
-    auto msg_image_gray = cv_bridge::CvImage(std_msgs::msg::Header(), "mono8", frame_gray).toImageMsg();
     pub_image_bgr->publish(*msg_image_bgr);
-    pub_image_gray->publish(*msg_image_gray);
 
     return true;
   }

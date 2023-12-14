@@ -104,7 +104,7 @@ void Routine::cllbck_tim_10hz() {
     if (button_now[17] && dt0 > 10) { system("poweroff"); }
   }
 
-  if (stm32_to_pc.battery_soc < 15 && !stm32_to_pc.battery_charging) {
+  if (stm32_to_pc.battery_voltage < 25 && !stm32_to_pc.battery_charging) {
     static rclcpp::Time time_old = this->now();
     static rclcpp::Time time_now = this->now();
     time_now = this->now();

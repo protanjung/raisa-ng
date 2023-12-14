@@ -19,18 +19,15 @@ class FaceDetector(Node):
         self.tim_10hz = self.create_timer(0.1, self.cllbck_tim_10hz)
         # ----Subscriber
         self.sub_image_bgr = self.create_subscription(Image, 'image_bgr', self.cllbck_sub_image_bgr, 1)
-        self.sub_image_gray = self.create_subscription(Image, 'image_gray', self.cllbck_sub_image_gray, 1)
         # ----Publisher
         self.pub_faces = self.create_publisher(Faces, 'faces', 10)
         self.pub_faces_display = self.create_publisher(Image, 'faces_display', 1)
         # ----Mutex
         self.mtx_image_bgr = threading.Lock()
-        self.mtx_image_gray = threading.Lock()
 
         # Image processing
         # ================
         self.image_bgr = np.zeros((360, 640, 3), np.uint8)
-        self.image_gray = np.zeros((360, 640, 1), np.uint8)
         self.face_display = np.zeros((360, 640, 3), np.uint8)
 
         # Mediapipe
@@ -75,13 +72,6 @@ class FaceDetector(Node):
         self.mtx_image_bgr.acquire()
         self.image_bgr = cv.resize(image, (640, 360))
         self.mtx_image_bgr.release()
-
-    def cllbck_sub_image_gray(self, msg):
-        image = CvBridge().imgmsg_to_cv2(msg, 'mono8')
-
-        self.mtx_image_gray.acquire()
-        self.image_gray = cv.resize(image, (640, 360))
-        self.mtx_image_gray.release()
 
     # ==================================
 
