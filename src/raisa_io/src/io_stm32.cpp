@@ -29,16 +29,10 @@ class IOSTM32 : public rclcpp::Node {
   uint16_t encoder_roda0;
   uint16_t encoder_roda1;
   uint16_t encoder_roda2;
-  uint16_t encoder_odometry0;
-  uint16_t encoder_odometry1;
+  uint16_t encoder_roda3;
   float gyroscope;
   float battery_voltage;
-  float battery_current;
   float battery_soc;
-  uint8_t battery_charging;
-  uint16_t driver_status0;
-  uint16_t driver_status1;
-  uint8_t tombol;
 
   // Data from PC
   // ============
@@ -116,7 +110,7 @@ class IOSTM32 : public rclcpp::Node {
     memcpy(stm32_tx_buffer + 9, &dtheta, 2);
 
     int len_data_from_pc = stm32_udp.send(stm32_tx_buffer, 12);
-    int len_data_to_pc = stm32_udp.recv(stm32_rx_buffer, 48);
+    int len_data_to_pc = stm32_udp.recv(stm32_rx_buffer, 24);
 
     // Communication Protocol (STM32 -> PC)
     // ====================================
@@ -125,30 +119,19 @@ class IOSTM32 : public rclcpp::Node {
     // 4        | 2     | encoder_roda0
     // 6        | 2     | encoder_roda1
     // 8        | 2     | encoder_roda2
-    // 10       | 2     | encoder_odometry0
-    // 12       | 2     | encoder_odometry1
-    // 14       | 4     | gyroscope
-    // 18       | 4     | battery_voltage
-    // 22       | 4     | battery_current
-    // 26       | 4     | battery_soc
-    // 30       | 1     | battery_charging
-    // 31       | 2     | driver_status0
-    // 33       | 2     | driver_status1
-    // 35       | 1     | tombol
+    // 10       | 2     | encoder_roda3
+    // 12       | 4     | gyroscope
+    // 16       | 4     | battery_voltage
+    // 20       | 4     | battery_soc
+
     memcpy(&epoch_to_pc, stm32_rx_buffer + 0, 4);
     memcpy(&encoder_roda0, stm32_rx_buffer + 4, 2);
     memcpy(&encoder_roda1, stm32_rx_buffer + 6, 2);
     memcpy(&encoder_roda2, stm32_rx_buffer + 8, 2);
-    memcpy(&encoder_odometry0, stm32_rx_buffer + 10, 2);
-    memcpy(&encoder_odometry1, stm32_rx_buffer + 12, 2);
-    memcpy(&gyroscope, stm32_rx_buffer + 14, 4);
-    memcpy(&battery_voltage, stm32_rx_buffer + 18, 4);
-    memcpy(&battery_current, stm32_rx_buffer + 22, 4);
-    memcpy(&battery_soc, stm32_rx_buffer + 26, 4);
-    memcpy(&battery_charging, stm32_rx_buffer + 30, 1);
-    memcpy(&driver_status0, stm32_rx_buffer + 31, 2);
-    memcpy(&driver_status1, stm32_rx_buffer + 33, 2);
-    memcpy(&tombol, stm32_rx_buffer + 35, 1);
+    memcpy(&encoder_roda3, stm32_rx_buffer + 10, 2);
+    memcpy(&gyroscope, stm32_rx_buffer + 12, 4);
+    memcpy(&battery_voltage, stm32_rx_buffer + 16, 4);
+    memcpy(&battery_soc, stm32_rx_buffer + 20, 4);
 
     // =================================
 
@@ -182,16 +165,11 @@ class IOSTM32 : public rclcpp::Node {
     msg_stm32_to_pc.encoder_roda0 = encoder_roda0;
     msg_stm32_to_pc.encoder_roda1 = encoder_roda1;
     msg_stm32_to_pc.encoder_roda2 = encoder_roda2;
-    msg_stm32_to_pc.encoder_odometry0 = encoder_odometry0;
-    msg_stm32_to_pc.encoder_odometry1 = encoder_odometry1;
+    msg_stm32_to_pc.encoder_roda3 = encoder_roda3;
     msg_stm32_to_pc.gyroscope = gyroscope;
     msg_stm32_to_pc.battery_voltage = battery_voltage;
-    msg_stm32_to_pc.battery_current = battery_current;
     msg_stm32_to_pc.battery_soc = battery_soc;
-    msg_stm32_to_pc.battery_charging = battery_charging;
-    msg_stm32_to_pc.driver_status0 = driver_status0;
-    msg_stm32_to_pc.driver_status1 = driver_status1;
-    msg_stm32_to_pc.tombol = tombol;
+    msg_stm32_to_pc.tombol = 0x01 + 0x02;
     // ----
     pub_stm32_to_pc->publish(msg_stm32_to_pc);
 

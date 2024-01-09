@@ -40,6 +40,8 @@ Routine::Routine() : Node("routine") {
       "odometry/filtered", 10, std::bind(&Routine::cllbck_sub_odometry_filtered, this, std::placeholders::_1));
   sub_thermal = this->create_subscription<std_msgs::msg::Float32>(
       "thermal", 10, std::bind(&Routine::cllbck_sub_thermal, this, std::placeholders::_1));
+  sub_ds4_driver_status = this->create_subscription<ds4_driver_msgs::msg::Status>(
+      "ds4_driver/status", 10, std::bind(&Routine::cllbck_sub_ds4_driver_status, this, std::placeholders::_1));
   //-----Publisher
   pub_stm32_from_pc = this->create_publisher<raisa_interfaces::msg::Stm32FromPc>("stm32/from_pc", 10);
   pub_basestation_from_pc = this->create_publisher<raisa_interfaces::msg::BasestationFromPc>("basestation/from_pc", 10);
@@ -167,15 +169,15 @@ void Routine::cllbck_sub_basestaion_to_pc(const raisa_interfaces::msg::Basestati
   // Copy message
   basestation_to_pc = *msg;
 
-  cmd_dx_in = abs(-msg->dy) < 1000 ? 0
-              : -msg->dy < 0       ? MAP((float)-msg->dy, -1000, -10000, 0, -1)
-                                   : MAP((float)-msg->dy, 1000, 10000, 0, 1);
-  cmd_dy_in = abs(-msg->dx) < 1000 ? 0
-              : -msg->dx < 0       ? MAP((float)-msg->dx, -1000, -10000, 0, -1)
-                                   : MAP((float)-msg->dx, 1000, 10000, 0, 1);
-  cmd_dtheta_in = abs(-msg->dtheta) < 3000 ? 0
-                  : -msg->dtheta < 0       ? MAP((float)-msg->dtheta, -3000, -10000, 0, -1)
-                                           : MAP((float)-msg->dtheta, 3000, 10000, 0, 1);
+  // cmd_dx_in = abs(-msg->dy) < 1000 ? 0
+  //             : -msg->dy < 0       ? MAP((float)-msg->dy, -1000, -10000, 0, -1)
+  //                                  : MAP((float)-msg->dy, 1000, 10000, 0, 1);
+  // cmd_dy_in = abs(-msg->dx) < 1000 ? 0
+  //             : -msg->dx < 0       ? MAP((float)-msg->dx, -1000, -10000, 0, -1)
+  //                                  : MAP((float)-msg->dx, 1000, 10000, 0, 1);
+  // cmd_dtheta_in = abs(-msg->dtheta) < 3000 ? 0
+  //                 : -msg->dtheta < 0       ? MAP((float)-msg->dtheta, -3000, -10000, 0, -1)
+  //                                          : MAP((float)-msg->dtheta, 3000, 10000, 0, 1);
 }
 
 void Routine::cllbck_sub_ui_to_pc(const raisa_interfaces::msg::UiToPc::SharedPtr msg) {
@@ -222,6 +224,15 @@ void Routine::cllbck_sub_odometry_filtered(const nav_msgs::msg::Odometry::Shared
 void Routine::cllbck_sub_thermal(const std_msgs::msg::Float32::SharedPtr msg) {
   // Copy message
   human_temperature = msg->data;
+}
+
+void Routine::cllbck_sub_ds4_driver_status(const ds4_driver_msgs::msg::Status::SharedPtr msg) {
+  // Copy message
+  ds4_driver_status = *msg;
+
+  cmd_dx_in = ds4_driver_status.axis_left_y;
+  cmd_dy_in = ds4_driver_status.axis_left_x;
+  cmd_dtheta_in = ds4_driver_status.axis_right_x;
 }
 
 int main(int argc, char** argv) {

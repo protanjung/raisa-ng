@@ -2,6 +2,7 @@
 #define ROUTINE_HPP_
 
 #include "boost/filesystem.hpp"
+#include "ds4_driver_msgs/msg/status.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "nav_msgs/msg/odometry.hpp"
 #include "pandu_ros2_kit/help_marker.hpp"
@@ -83,6 +84,7 @@ class Routine : public rclcpp::Node {
   rclcpp::Subscription<raisa_interfaces::msg::Faces>::SharedPtr sub_faces;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_odometry_filtered;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_thermal;
+  rclcpp::Subscription<ds4_driver_msgs::msg::Status>::SharedPtr sub_ds4_driver_status;
   //-----Publisher
   rclcpp::Publisher<raisa_interfaces::msg::Stm32FromPc>::SharedPtr pub_stm32_from_pc;
   rclcpp::Publisher<raisa_interfaces::msg::BasestationFromPc>::SharedPtr pub_basestation_from_pc;
@@ -129,6 +131,10 @@ class Routine : public rclcpp::Node {
   bool button_now[18] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1};
   bool button_old[18] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1};
 
+  // DS4 status
+  // ==========
+  ds4_driver_msgs::msg::Status ds4_driver_status;
+
   // Vision
   // ======
   uint8_t human_presence = 0;
@@ -171,6 +177,7 @@ class Routine : public rclcpp::Node {
   void cllbck_sub_faces(const raisa_interfaces::msg::Faces::SharedPtr msg);
   void cllbck_sub_odometry_filtered(const nav_msgs::msg::Odometry::SharedPtr msg);
   void cllbck_sub_thermal(const std_msgs::msg::Float32::SharedPtr msg);
+  void cllbck_sub_ds4_driver_status(const ds4_driver_msgs::msg::Status::SharedPtr msg);
 
   //====================================
 

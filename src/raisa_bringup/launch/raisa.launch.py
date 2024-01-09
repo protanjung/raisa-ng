@@ -14,15 +14,15 @@ from launch_ros.actions import Node
 # Collection of parameters for raisa tested by Pandu Surya Tantra and Moh Ismarintan Zazuli.
 # Should yo want to ask about these parameters, please contact them.
 param_raisa = {'raisa.tf.body': [0.00, 0.00, 0.75, 0.00, 0.00, 0.00],
-               'raisa.tf.camera': [0.24, 0.00, 0.30, 0.00, 0.00, 0.00],
-               'raisa.tf.lidar': [0.20, 0.00, 0.35, 180.00, 0.00, 90.00],
-               'raisa.conversion.odometry_pulse_to_meter': 0.000076586,
-               'raisa.conversion.roda_pulse_to_meter': 0.0000820008,
-               'raisa.conversion.stm32_from_pc_linear_multiplier': 170.0,
-               'raisa.conversion.stm32_from_pc_angular_multiplier': 28.0,
-               'raisa.odometry.offset_x': 0.317696,
+               'raisa.tf.camera': [0.23, 0.00, 0.36, 0.00, 0.00, 0.00],
+               'raisa.tf.lidar': [0.16, 0.00, 0.40, 180.00, 0.00, 90.00],
+               'raisa.conversion.odometry_pulse_to_meter': 0.000170896,
+               'raisa.conversion.roda_pulse_to_meter': 0.000170896,
+               'raisa.conversion.stm32_from_pc_linear_multiplier': 125.0,
+               'raisa.conversion.stm32_from_pc_angular_multiplier': 33.0,
+               'raisa.odometry.offset_x': 0.0,
                'raisa.odometry.offset_y': 0.0,
-               'raisa.roda.offset_x': -0.05,
+               'raisa.roda.offset_x': 0.0,
                'raisa.roda.offset_y': 0.0,
                'raisa.body.width': 0.5,
                'raisa.body.length': 0.5,
@@ -43,6 +43,13 @@ raisa_ng_data_path = os.path.join(os.environ['HOME'], 'raisa-ng-data')
 
 
 def generate_launch_description():
+    ds4_driver = Node(
+        package='ds4_driver',
+        executable='ds4_driver_node.py',
+        name='ds4_driver',
+        namespace='ds4_driver',
+        respawn=True)
+
     ekf_node = Node(
         package='robot_localization',
         executable='ekf_node',
@@ -206,7 +213,7 @@ def generate_launch_description():
         executable='io_vision',
         name='io_vision',
         respawn=True,
-        parameters=[{'camera.path': '/dev/v4l/by-id/usb-046d_C922_Pro_Stream_Webcam_FE92332F-video-index0'}])
+        parameters=[{'camera.path': '/dev/v4l/by-id/usb-Sonix_Technology_Co.__Ltd._USB_2.0_Camera_SN0179-video-index0'}])
 
     face_detector = Node(
         package='raisa_middleware',
@@ -261,21 +268,22 @@ def generate_launch_description():
                     ('rtabmap/set_mode_mapping', '/slam/set_mode_mapping')])
 
     return LaunchDescription([
+        ds4_driver,
         ekf_node,
         imu_filter_madgwick_node,
         realsense2_camera_node,
-        rtabmap_slam_rtabmap,
-        rtabmap_sync_rgbd_sync,
+        # rtabmap_slam_rtabmap,
+        # rtabmap_sync_rgbd_sync,
         rviz2,
         io_basestation,
-        io_lslidar_n301,
+        # io_lslidar_n301,
         io_stm32,
-        io_thermal,
-        io_ui,
-        io_vision,
-        face_detector,
-        mjpeg_server,
-        obstacle_detector,
+        # io_thermal,
+        # io_ui,
+        # io_vision,
+        # face_detector,
+        # mjpeg_server,
+        # obstacle_detector,
         pose_estimator,
         sound_player,
         transform_broadcaster,

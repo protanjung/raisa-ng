@@ -6,6 +6,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 set(var_dependencies
+    ds4_driver_msgs
     nav_msgs
     pandu_ros2_kit
     raisa_interfaces

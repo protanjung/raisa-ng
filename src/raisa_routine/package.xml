@@ -10,6 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
+  <depend>ds4_driver_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>pandu_ros2_kit</depend>
   <depend>raisa_interfaces</depend>

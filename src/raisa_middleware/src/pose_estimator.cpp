@@ -28,11 +28,10 @@ class PoseEstimator : public rclcpp::Node {
 
   // Encoder dan gyroscope
   // =====================
-  uint16_t encoder_odometry0;
-  uint16_t encoder_odometry1;
   uint16_t encoder_roda0;
   uint16_t encoder_roda1;
   uint16_t encoder_roda2;
+  uint16_t encoder_roda3;
   float gyroscope;
 
   // Pose and twist
@@ -86,11 +85,10 @@ class PoseEstimator : public rclcpp::Node {
   //====================================
 
   void cllbck_sub_stm32_to_pc(const raisa_interfaces::msg::Stm32ToPc::SharedPtr msg) {
-    encoder_odometry0 = msg->encoder_odometry0;
-    encoder_odometry1 = msg->encoder_odometry1;
     encoder_roda0 = msg->encoder_roda0;
     encoder_roda1 = msg->encoder_roda1;
     encoder_roda2 = msg->encoder_roda2;
+    encoder_roda3 = msg->encoder_roda3;
     gyroscope = msg->gyroscope;
 
     // =================================
@@ -103,20 +101,18 @@ class PoseEstimator : public rclcpp::Node {
 
     // =================================
 
-    int16_t d_encoder0 = 0, d_encoder1 = 0;
-    delta_encoder(encoder_odometry0, encoder_odometry1, d_encoder0, d_encoder1);
-    if (abs(d_encoder0) > 16384 || abs(d_encoder1) > 16384) {
-      RCLCPP_ERROR(
-          this->get_logger(),
-          "Delta encoder value is too big (%d, %d). Possible of connection error.",
-          d_encoder0,
-          d_encoder1);
-      return;
-    }
-
-    int16_t d_encoder0_aux = 0, d_encoder1_aux = 0, d_encoder2_aux = 0;
-    delta_encoder_aux(encoder_roda0, encoder_roda1, encoder_roda2, d_encoder0_aux, d_encoder1_aux, d_encoder2_aux);
-    if (abs(d_encoder0_aux) > 2048 || abs(d_encoder1_aux) > 2048 || abs(d_encoder2_aux) > 2048) {
+    int16_t d_encoder0_aux = 0, d_encoder1_aux = 0, d_encoder2_aux = 0, d_encoder3_aux = 0;
+    delta_encoder_aux(
+        encoder_roda0,
+        encoder_roda1,
+        encoder_roda2,
+        encoder_roda3,
+        d_encoder0_aux,
+        d_encoder1_aux,
+        d_encoder2_aux,
+        d_encoder3_aux);
+    if (abs(d_encoder0_aux) > 32768 || abs(d_encoder1_aux) > 32768 || abs(d_encoder2_aux) > 32768 ||
+        abs(d_encoder3_aux) > 32768) {
       RCLCPP_ERROR(
           this->get_logger(),
           "Delta encoder aux value is too big (%d, %d, %d). Possible of connection error.",
@@ -147,11 +143,13 @@ class PoseEstimator : public rclcpp::Node {
     }
 
     temp_pose2d.x +=
-        (d_encoder0 * cosf(temp_pose2d.theta + 0.7853981634) + d_encoder1 * cosf(temp_pose2d.theta - 0.7853981634)) *
-        raisa_encoder_odometry_pulse_to_meter;
+        (d_encoder0_aux * cosf(temp_pose2d.theta - 0.785398) + d_encoder1_aux * cosf(temp_pose2d.theta + 0.785398) +
+         d_encoder2_aux * cosf(temp_pose2d.theta + 2.356194) + d_encoder3_aux * cosf(temp_pose2d.theta - 2.356194)) *
+        raisa_roda_pulse_roda_to_meter;
     temp_pose2d.y +=
-        (d_encoder0 * sinf(temp_pose2d.theta + 0.7853981634) + d_encoder1 * sinf(temp_pose2d.theta - 0.7853981634)) *
-        raisa_encoder_odometry_pulse_to_meter;
+        (d_encoder0_aux * sinf(temp_pose2d.theta - 0.785398) + d_encoder1_aux * sinf(temp_pose2d.theta + 0.785398) +
+         d_encoder2_aux * sinf(temp_pose2d.theta + 2.356194) + d_encoder3_aux * sinf(temp_pose2d.theta - 2.356194)) *
+        raisa_roda_pulse_roda_to_meter;
 
     temp_pose2d.theta += d_gyroscope * M_PI / 180;
     if (temp_pose2d.theta > M_PI) {
@@ -219,13 +217,15 @@ class PoseEstimator : public rclcpp::Node {
       first_time_aux = false;
     }
 
-    temp_pose2d_aux.x += (d_encoder0_aux * cosf(temp_pose2d_aux.theta + 2.6179938780) +
-                          d_encoder1_aux * cosf(temp_pose2d_aux.theta + 0.5235987756) +
-                          d_encoder2_aux * cosf(temp_pose2d_aux.theta - 1.5707963268)) *
+    temp_pose2d_aux.x += (d_encoder0_aux * cosf(temp_pose2d_aux.theta + 0.785398) +
+                          d_encoder1_aux * cosf(temp_pose2d_aux.theta - 0.785398) +
+                          d_encoder2_aux * cosf(temp_pose2d_aux.theta - 2.356194) +
+                          d_encoder3_aux * cosf(temp_pose2d_aux.theta + 2.356194)) *
                          raisa_roda_pulse_roda_to_meter;
-    temp_pose2d_aux.y += (d_encoder0_aux * sinf(temp_pose2d_aux.theta + 2.6179938780) +
-                          d_encoder1_aux * sinf(temp_pose2d_aux.theta + 0.5235987756) +
-                          d_encoder2_aux * sinf(temp_pose2d_aux.theta - 1.5707963268)) *
+    temp_pose2d_aux.y += (d_encoder0_aux * sinf(temp_pose2d_aux.theta + 0.785398) +
+                          d_encoder1_aux * sinf(temp_pose2d_aux.theta - 0.785398) +
+                          d_encoder2_aux * sinf(temp_pose2d_aux.theta - 2.356194) +
+                          d_encoder3_aux * sinf(temp_pose2d_aux.theta + 2.356194)) *
                          raisa_roda_pulse_roda_to_meter;
 
     temp_pose2d_aux.theta += d_gyroscope * M_PI / 180;
@@ -295,14 +295,27 @@ class PoseEstimator : public rclcpp::Node {
 
   //====================================
 
-  void delta_encoder(uint16_t encoder0, uint16_t encoder1, int16_t &d_encoder0, int16_t &d_encoder1) {
+  void delta_encoder_aux(
+      uint16_t encoder0,
+      uint16_t encoder1,
+      uint16_t encoder2,
+      uint16_t encoder3,
+      int16_t &d_encoder0,
+      int16_t &d_encoder1,
+      int16_t &d_encoder2,
+      int16_t &d_encoder3) {
     static bool is_initialized = false;
     static uint16_t last_encoder0 = 0;
     static uint16_t last_encoder1 = 0;
+    static uint16_t last_encoder2 = 0;
+    static uint16_t last_encoder3 = 0;
 
-    if (is_initialized == false && (last_encoder0 == 0 || last_encoder1 == 0)) {
+    if (is_initialized == false &&
+        (last_encoder0 == 0 || last_encoder1 == 0 || last_encoder2 == 0 || last_encoder3 == 0)) {
       last_encoder0 = encoder0;
       last_encoder1 = encoder1;
+      last_encoder2 = encoder2;
+      last_encoder3 = encoder3;
       is_initialized = true;
       return;
     }
@@ -323,57 +336,26 @@ class PoseEstimator : public rclcpp::Node {
       d_encoder1 = encoder1 - last_encoder1;
     }
 
-    last_encoder0 = encoder0;
-    last_encoder1 = encoder1;
-  }
-
-  void delta_encoder_aux(
-      uint16_t encoder0,
-      uint16_t encoder1,
-      uint16_t encoder2,
-      int16_t &d_encoder0,
-      int16_t &d_encoder1,
-      int16_t &d_encoder2) {
-    static bool is_initialized = false;
-    static uint16_t last_encoder0 = 0;
-    static uint16_t last_encoder1 = 0;
-    static uint16_t last_encoder2 = 0;
-
-    if (is_initialized == false && (last_encoder0 == 0 || last_encoder1 == 0 || last_encoder2 == 0)) {
-      last_encoder0 = encoder0;
-      last_encoder1 = encoder1;
-      last_encoder2 = encoder2;
-      is_initialized = true;
-      return;
-    }
-
-    if (encoder0 < 1024 && last_encoder0 > 3072) {
-      d_encoder0 = encoder0 - last_encoder0 + 4096;
-    } else if (encoder0 > 3072 && last_encoder0 < 1024) {
-      d_encoder0 = encoder0 - last_encoder0 - 4096;
-    } else {
-      d_encoder0 = encoder0 - last_encoder0;
-    }
-
-    if (encoder1 < 1024 && last_encoder1 > 3072) {
-      d_encoder1 = encoder1 - last_encoder1 + 4096;
-    } else if (encoder1 > 3072 && last_encoder1 < 1024) {
-      d_encoder1 = encoder1 - last_encoder1 - 4096;
-    } else {
-      d_encoder1 = encoder1 - last_encoder1;
-    }
-
-    if (encoder2 < 1024 && last_encoder2 > 3072) {
-      d_encoder2 = encoder2 - last_encoder2 + 4096;
-    } else if (encoder2 > 3072 && last_encoder2 < 1024) {
-      d_encoder2 = encoder2 - last_encoder2 - 4096;
+    if (encoder2 < 16384 && last_encoder2 > 49152) {
+      d_encoder2 = encoder2 - last_encoder2 + 65536;
+    } else if (encoder2 > 49152 && last_encoder2 < 16384) {
+      d_encoder2 = encoder2 - last_encoder2 - 65536;
     } else {
       d_encoder2 = encoder2 - last_encoder2;
+    }
+
+    if (encoder3 < 16384 && last_encoder3 > 49152) {
+      d_encoder3 = encoder3 - last_encoder3 + 65536;
+    } else if (encoder3 > 49152 && last_encoder3 < 16384) {
+      d_encoder3 = encoder3 - last_encoder3 - 65536;
+    } else {
+      d_encoder3 = encoder3 - last_encoder3;
     }
 
     last_encoder0 = encoder0;
     last_encoder1 = encoder1;
     last_encoder2 = encoder2;
+    last_encoder3 = encoder3;
   }
 
   void delta_gyroscope(float gyroscope, float &d_gyroscope) {

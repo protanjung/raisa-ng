@@ -1,6 +1,7 @@
 uint16 encoder_roda0
 uint16 encoder_roda1
 uint16 encoder_roda2
+uint16 encoder_roda3
 uint16 encoder_odometry0
 uint16 encoder_odometry1
 float32 gyroscope
