@@ -1,4 +1,5 @@
 #include "pandu_ros2_kit/help_marker.hpp"
+#include "pcl/filters/crop_box.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "pcl_ros/transforms.hpp"
 #include "raisa_interfaces/msg/obstacle_data.hpp"
@@ -97,6 +98,16 @@ class ObstacleDetector : public rclcpp::Node {
     }
 
     pcl_ros::transformPointCloud(points_lidar, points_base, tf_base_lidar);
+
+    // =================================
+
+    // Crop all points within -0.35 < x < 0.35 and -0.35 < y < 0.35
+    static pcl::CropBox<pcl::PointXYZ> crop_box;
+    crop_box.setInputCloud(points_base.makeShared());
+    crop_box.setMin(Eigen::Vector4f(-0.35, -0.35, -100, 1));
+    crop_box.setMax(Eigen::Vector4f(0.35, 0.35, 100, 1));
+    crop_box.setNegative(true);
+    crop_box.filter(points_base);
 
     // =================================
 

@@ -15,7 +15,7 @@ from launch_ros.actions import Node
 # Should yo want to ask about these parameters, please contact them.
 param_raisa = {'raisa.tf.body': [0.00, 0.00, 0.75, 0.00, 0.00, 0.00],
                'raisa.tf.camera': [0.23, 0.00, 0.36, 0.00, 0.00, 0.00],
-               'raisa.tf.lidar': [0.16, 0.00, 0.40, 180.00, 0.00, 90.00],
+               'raisa.tf.lidar': [0.16, 0.00, 0.40, 180.00, 0.00, 187.00],
                'raisa.conversion.odometry_pulse_to_meter': 0.000170896,
                'raisa.conversion.roda_pulse_to_meter': 0.000170896,
                'raisa.conversion.stm32_from_pc_linear_multiplier': 125.0,
@@ -187,6 +187,18 @@ def generate_launch_description():
                     ('/points_xyzi', '/lidar/points_xyzi'),
                     ('/laser_scan', '/scan')])
 
+    io_mb1r2t = Node(
+        package='raisa_io',
+        executable='io_mb1r2t.py',
+        name='io_mb1r2t',
+        respawn=True,
+        parameters=[{'port': '/dev/ttyUSB0',
+                     'baud': 158700,
+                     'frame_id': 'lidar_link'}],
+        remappings=[('/points_xyz', '/lidar/points_xyz'),
+                    ('/points_xyzi', '/lidar/points_xyzi'),
+                    ('/laser_scan', '/scan')])
+
     io_stm32 = Node(
         package='raisa_io',
         executable='io_stm32',
@@ -272,18 +284,19 @@ def generate_launch_description():
         ekf_node,
         imu_filter_madgwick_node,
         realsense2_camera_node,
-        # rtabmap_slam_rtabmap,
-        # rtabmap_sync_rgbd_sync,
+        rtabmap_slam_rtabmap,
+        rtabmap_sync_rgbd_sync,
         rviz2,
-        io_basestation,
+        # io_basestation,
         # io_lslidar_n301,
+        io_mb1r2t,
         io_stm32,
         # io_thermal,
         # io_ui,
         # io_vision,
         # face_detector,
         # mjpeg_server,
-        # obstacle_detector,
+        obstacle_detector,
         pose_estimator,
         sound_player,
         transform_broadcaster,

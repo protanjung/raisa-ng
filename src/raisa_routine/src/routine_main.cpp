@@ -78,12 +78,19 @@ void Routine::cllbck_tim_10hz() {
 
   for (int i = 0; i < 16; i++) {
     button_old[i] = button_now[i];
-    button_now[i] = basestation_to_pc.tombol & (1 << i);
+    // button_now[i] = basestation_to_pc.tombol & (1 << i);
   }
   for (int i = 0; i < 2; i++) {
     button_old[i + 16] = button_now[i + 16];
     button_now[i + 16] = ~stm32_to_pc.tombol & (1 << i);
   }
+
+  button_now[6] = ds4_driver_status.button_triangle;
+  button_now[8] = ds4_driver_status.button_circle;
+  button_now[10] = ds4_driver_status.button_cross;
+  button_now[7] = ds4_driver_status.button_square;
+  button_now[9] = ds4_driver_status.button_share;
+  button_now[11] = ds4_driver_status.button_options;
 
   if (algorithm_mission == 0) {
     static rclcpp::Time time_old0 = this->now();

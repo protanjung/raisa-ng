@@ -49,7 +49,8 @@ install(
 
 ament_python_install_package(${PROJECT_NAME})
 
-install(PROGRAMS scripts/io_thermal.py DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS scripts/io_thermal.py scripts/io_mb1r2t.py
+        DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
