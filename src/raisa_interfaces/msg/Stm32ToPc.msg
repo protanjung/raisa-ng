@@ -1,0 +1,15 @@
+uint16 encoder_roda0
+uint16 encoder_roda1
+uint16 encoder_roda2
+uint16 encoder_roda3
+uint16 encoder_odometry0
+uint16 encoder_odometry1
+float32 gyroscope
+float32 battery_voltage
+float32 battery_current
+float32 battery_soc
+uint8 battery_charging
+uint16 driver_status0
+uint16 driver_status1
+uint16 fault_code
+uint8 button_code
