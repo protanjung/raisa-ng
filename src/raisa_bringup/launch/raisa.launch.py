@@ -49,6 +49,38 @@ def generate_launch_description():
         respawn=True,
     )
 
+    # --------------------------------------------------------------------------
+
+    imu_filter_madgwick_node = Node(
+        package="imu_filter_madgwick",
+        executable="imu_filter_madgwick_node",
+        name="imu_filter_madgwick_node",
+        parameters=[{"use_mag": False}],
+        remappings=[("/imu/data_raw", "/imu_raw"), ("/imu/data", "/imu_filtered")],
+        arguments=["--ros-args", "--log-level", "warn"],
+        respawn=True,
+    )
+
+    realsense2_camera_node = Node(
+        package="realsense2_camera",
+        executable="realsense2_camera_node",
+        name="realsense2_camera_node",
+        parameters=[
+            {
+                "enable_accel": True,
+                "enable_gyro": True,
+                "unite_imu_method": 2,
+                "align_depth.enable": True,
+                "initial_reset": True,
+                "depth_module.profile": "640x360x15",
+                "rgb_camera.profile": "640x360x15",
+            }
+        ],
+        remappings=[("/imu", "/imu_raw")],
+        arguments=["--ros-args", "--log-level", "warn"],
+        respawn=True,
+    )
+
     rviz2 = Node(
         package="rviz2",
         executable="rviz2",
@@ -66,6 +98,8 @@ def generate_launch_description():
         [
             io_stm32,
             io_vision,
+            imu_filter_madgwick_node,
+            realsense2_camera_node,
             rviz2,
             RegisterEventHandler(
                 OnProcessExit(
