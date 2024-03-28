@@ -17,19 +17,32 @@ path_config = PathJoinSubstitution(
 
 
 def generate_launch_description():
+    io_stm32 = Node(
+        package="raisa_io",
+        executable="io_stm32",
+        name="io_stm32",
+        parameters=[
+            {
+                "ip": "192.168.50.2",
+                "port": 9798,
+            }
+        ],
+        output="screen",
+        respawn=True,
+    )
+
     io_vision = Node(
         package="pandu_ros2_kit",
         executable="io_vision",
         name="io_vision",
         parameters=[
             {
-                "camera_path": "/dev/v4l/by-id/usb-SunplusIT_Inc_HD_Webcam-video-index0",
-                "camera_width": 640,
-                "camera_height": 360,
+                "camera_path": "/dev/v4l/by-id/usb-046d_C922_Pro_Stream_Webcam_4C1A129F-video-index0",
+                "camera_width": 320,
+                "camera_height": 240,
                 "camera_fps": 30,
                 "output_width": 640,
-                "output_height": 360,
-                "output_fps": 30,
+                "output_height": 480,
             }
         ],
         output="screen",
@@ -51,6 +64,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            io_stm32,
             io_vision,
             rviz2,
             RegisterEventHandler(
